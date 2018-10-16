@@ -1,0 +1,20 @@
+---
+title: "Immunizations"
+author: "Richard Qiu"
+date: "October 15, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+load("NISPUF16.RData")
+```
+
+
+```{r}
+raw <- as_tibble(NISPUF16)
+
+```
+
