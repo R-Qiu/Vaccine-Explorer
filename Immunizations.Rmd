@@ -7,25 +7,116 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
 library(tidyverse)
+library(Hmisc)
+library(tigris)
 
 load("NISPUF16.RData")
+data(fips_codes)
+
+fips <- 
+  fips_codes %>% 
+  distinct(state, state_code) %>% 
+  rename(STATE = state_code) %>% 
+  mutate(STATE = as.numeric(STATE))
+          
+
 raw <- as_tibble(NISPUF16)
+
 ```
 
 ## Background
 
 I'm interested in looking at the efficacy of the Affordable Care Act (ACA) since its implementation. It has been shown pretty decisively that the ACA has increased the number of Americans with health insurance, but how does that translate to health outcomes? I'm thinking about looking at intermediates of health, like vaccination rate, hospital visits, etc. I have found and raw CDC survey data for immunizations in 2016 (The .RData file in this repo.) I'd like to be able to look at how this, among other factors, changes after the implementation of the ACA, and in particular the differences between states which did and did not expand Medicaid. 
 
-```{r echo = FALSE}
-# temp <-
-#   raw %>%
-#   select(SEQNUMC, STATE) %>% 
-#   slice(1:1000) %>% 
-#   count(STATE) %>% 
-#   arrange(desc(n)) %>% 
-#   mutate(n = n/10)
-# 
-# temp
+
+```{r}
+state_counts <-
+  raw %>% 
+  select(STATE) %>% 
+  count(STATE)
+
+raw <-
+  raw %>% 
+  mutate(STATE = as.numeric(STATE))
+
+
 ```
+
+
+
+```{r exploration echo = FALSE, include=FALSE}
+
+temp <-
+  raw %>%
+  left_join(fips, by= "STATE") %>% 
+  select(SEQNUMC, state) %>%
+  slice(1:1000) %>%
+  count(state) %>%
+  mutate(expected = n*dim(raw)[1]/1000) %>% 
+  arrange((expected))
+
+temp
+```
+
+```{r echo=FALSE, include=FALSE}
+measles_bf <-
+  raw %>%
+  select(BF_ENDR06, P_NUMMMR) %>% 
+  filter(!is.na(BF_ENDR06) & !is.na(P_NUMMMR),
+         P_NUMMMR != 3) %>% 
+  mutate(BF_ENDR06 = as.numeric(BF_ENDR06),
+         P_NUMMMR = as.factor(P_NUMMMR))
+
+measles_bf %>% 
+  ggplot(aes(x = P_NUMMMR, y = BF_ENDR06)) +
+  geom_violin() + 
+  geom_hline(aes(yintercept = 365)) +
+  geom_hline(aes(yintercept = 365/2)) +
+  geom_hline(aes(yintercept = 365*3/2))
+
+```
+
+
+```{r}
+# measles_income <-
+#   raw %>%
+#   mutate(P_NUMMMR = as.factor(P_NUMMMR),
+#          income = as.numeric(INCQ298A),
+#          income = recode(income, 
+#                          3 = "$0",
+#                          4 = "$7500",
+#                          5 =  "$10000",
+#                          6 = "$17500",
+#                          7 = "$20000",
+#                          8 = "$25000",
+#                          9 = "$30000",
+#                          10 = "$35000",
+#                          11 = "$40000",
+#                          12 = "$50000",
+#                          13 = "$60000",
+#                          14 = "$75000")) %>% 
+#   filter(!is.na(P_NUMMMR) & !is.na(INCQ298A), 
+#          P_NUMMMR != 3) 
+
+measles_income <-
+  raw %>% 
+  transmute(income = as.factor(INCQ298A),
+         measles = as.factor(P_NUMMMR)) %>% 
+  filter(!is.na(measles), 
+          measles != 3,
+         !income %in% c(77,99))
+
+write_rds(measles_income, "Rough/measles_income.rds")
+
+measles_income %>% 
+  ggplot(aes(x =income , fill = measles)) +
+  geom_bar(position="fill")
+```
+
+
+
+
+
 
