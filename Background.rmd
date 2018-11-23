@@ -1,0 +1,14 @@
+---
+title: "Background"
+author: "Richard Qiu"
+date: "November 22, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Background
+
+I'm interested in looking at the efficacy of the Affordable Care Act (ACA) since its implementation. It has been shown pretty decisively that the ACA has increased the number of Americans with health insurance, but how does that translate to health outcomes? I'm thinking about looking at intermediates of health, like vaccination rate, hospital visits, etc. I have found and raw CDC survey data for immunizations in 2016 (The .RData file in this repo.) I'd like to be able to look at how this, among other factors, changes after the implementation of the ACA, and in particular the differences between states which did and did not expand Medicaid. 
