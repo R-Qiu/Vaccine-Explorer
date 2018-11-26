@@ -11,19 +11,36 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(Hmisc)
 library(tigris)
+library(sjlabelled)
+library(readxl)
+library(janitor)
+library(stringr)
 
 load("NISPUF16.RData")
 data(fips_codes)
 
 fips <- 
   fips_codes %>% 
-  distinct(state, state_code) %>% 
-  rename(STATE = state_code) %>% 
-  mutate(STATE = as.numeric(STATE))
+  distinct(state, state_code, state_name) %>%
+  mutate(state_code = as.numeric(state_code),
+         state_name = str_to_lower(state_name))
           
 
 raw <- as_tibble(NISPUF16)
 
+
+raw_insurance_cols <- c("state", "medicaid", "per_2013", "margin_2013", "per_2014", "margin_2014", "per_2015", "margin_2015", "per_2016", "margin_2016", "remove_1", "remove_2", "remove_3", "remove_4")
+
+raw_insurance_per <- 
+  read_excel("table6.xls", skip = 12, col_names = raw_insurance_cols) 
+
+insurance_per <- 
+  raw_insurance_per %>% 
+  remove_empty() %>% 
+  mutate(state = str_to_lower(str_remove_all(state, "[[:punct:]]")),
+         medicaid = str_to_lower(medicaid)) %>% 
+  select(-starts_with("remove")) %>% 
+  slice(1:51)
 ```
 
 
@@ -36,18 +53,18 @@ state_counts <-
 
 raw <-
   raw %>% 
-  mutate(STATE = as.numeric(STATE))
+  mutate(state_code = as.numeric(STATE))
 
 
 ```
 
 
 
-```{r exploration echo = FALSE, include=FALSE}
+```{r exploration, echo = FALSE, include=FALSE}
 
 temp <-
   raw %>%
-  left_join(fips, by= "STATE") %>% 
+  left_join(fips, by= "state_code") %>% 
   select(SEQNUMC, state) %>%
   slice(1:1000) %>%
   count(state) %>%
@@ -57,7 +74,7 @@ temp <-
 temp
 ```
 
-```{r echo=FALSE, include=FALSE}
+```{r measles_bf, echo=FALSE, include=FALSE}
 measles_bf <-
   raw %>%
   select(BF_ENDR06, P_NUMMMR) %>% 
@@ -76,27 +93,7 @@ measles_bf %>%
 ```
 
 
-```{r}
-# measles_income <-
-#   raw %>%
-#   mutate(P_NUMMMR = as.factor(P_NUMMMR),
-#          income = as.numeric(INCQ298A),
-#          income = recode(income, 
-#                          3 = "$0",
-#                          4 = "$7500",
-#                          5 =  "$10000",
-#                          6 = "$17500",
-#                          7 = "$20000",
-#                          8 = "$25000",
-#                          9 = "$30000",
-#                          10 = "$35000",
-#                          11 = "$40000",
-#                          12 = "$50000",
-#                          13 = "$60000",
-#                          14 = "$75000")) %>% 
-#   filter(!is.na(P_NUMMMR) & !is.na(INCQ298A), 
-#          P_NUMMMR != 3) 
-
+```{r measles_income, echo=FALSE, include=FALSE}
 measles_income <-
   raw %>% 
   transmute(income = as.factor(INCQ298A),
@@ -110,6 +107,29 @@ write_rds(measles_income, "Rough/measles_income.rds")
 measles_income %>% 
   ggplot(aes(x =income , fill = measles)) +
   geom_bar(position="fill")
+```
+
+```{r measles_insurace}
+measles_insurance <-
+  raw %>% 
+  transmute(state_code, measles = as.factor(P_NUMMMR)) %>% 
+  filter(measles %in% c(0, 1)) %>% 
+  count(state_code, measles) %>% 
+  left_join(fips, by = "state_code") %>% 
+  select(-state_code, -state) %>% 
+  left_join(insurance_per, by = c("state_name" = "state")) %>% 
+  select(state_name, measles, n, per_2016) %>% 
+  group_by(state_name) %>% 
+  mutate(measles_per = n/sum(n),
+         per_2016 = 100 - per_2016) %>% 
+  filter(measles == 1)
+
+ggplot(measles_insurance, aes(x = per_2016, y = measles_per)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+
+measles_insurace_lm <- lm(measles_per ~ per_2016, measles_insurance)
 ```
 
 
