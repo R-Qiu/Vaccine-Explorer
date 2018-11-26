@@ -21,9 +21,22 @@ library(stringr)
 library(tidyverse)
 library(Hmisc)
 
+# Load in data for FIPS codes from tigris
+# distinct() essentially removes the county codes from the dataset
+# Make state_code numeric and state_name lowercase to facilitate joining with other data
+
+data(fips_codes)
+
+fips <- 
+  fips_codes %>% 
+  distinct(state, state_code, state_name) %>%
+  mutate(state_code = as.numeric(state_code),
+         state_name = str_to_lower(state_name))
+
 
 # Load in CDC immunization survey data
 # Created from .DAT files in .R scripts in /format_data/ folder
+# Convert each RData object into a tibble
 
 load("NISPUF12.RData")
 load("NISPUF13.RData")
@@ -37,6 +50,10 @@ raw_14 <- as_tibble(NISPUF14)
 raw_15 <- as_tibble(NISPUF15)
 raw_16 <- as_tibble(NISPUF16)
 
+
+# Bind all years into a masive tibble, with each one ID'd by year
+# Left join with fips codes
+
 raw <- 
   bind_rows("2012" = raw_12,
             "2013" = raw_13,
@@ -44,18 +61,11 @@ raw <-
             "2015" = raw_15,
             "2016" = raw_16,
             .id = "year") %>% 
-  mutate(state_code = as.numeric(STATE))
+  mutate(state_code = as.numeric(STATE)) %>% 
+  left_join(fips, by= "state_code")
 
 
-
-data(fips_codes)
-
-fips <- 
-  fips_codes %>% 
-  distinct(state, state_code, state_name) %>%
-  mutate(state_code = as.numeric(state_code),
-         state_name = str_to_lower(state_name))
-
+# Add custom names for insurance data
 
 raw_insurance_cols <- c("state", "medicaid", "per_2013", "margin_2013", "per_2014", "margin_2014", "per_2015", "margin_2015", "per_2016", "margin_2016", "remove_1", "remove_2", "remove_3", "remove_4")
 
@@ -80,11 +90,7 @@ state_counts <-
   raw %>% 
   select(STATE) %>% 
   count(STATE)
-
-raw <-
-  raw %>% 
   
-
 
 ```
 
@@ -163,6 +169,9 @@ measles_insurace_lm <- lm(measles_per ~ per_2016, measles_insurance)
 ```
 
 
+```{r}
+write_rds(raw, "temp.rds")
+```
 
 
 
