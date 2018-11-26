@@ -11,44 +11,36 @@ library(shiny)
 library(shinyWidgets)
 library(shinythemes)
 library(tidyverse)
+library(leaflet)
 library(sjPlot)
 
 
 # Define UI for application that draws a histogram
-ui <- fluidPage(
-   
+ui <-
   navbarPage("Immunizations", 
-    tabPanel("Introduction",
-  
-       # Sidebar with a slider input for number of bins 
-       sidebarLayout(
-          sidebarPanel(
-             sliderInput("bins",
-                         "Number of bins:",
-                         min = 1,
-                         max = 50,
-                         value = 30)
-          ),
-          
-          # Show a plot of the generated distribution
-          mainPanel(
-             plotOutput("distPlot")
-          )
-       )
-    )
+    tabPanel("Introduction", htmlOutput("intro")),
+    tabPanel("Exploration", 
+      tabsetPanel("Demographics", leafletOutput("survey_per_capita_map")))
   )
-)
+
 # Define server logic required to draw a histogram
 server <- function(input, output) {
    
-   output$distPlot <- renderPlot({
-      # generate bins based on input$bins from ui.R
-      x    <- faithful[, 2] 
-      bins <- seq(min(x), max(x), length.out = input$bins + 1)
-      
-      # draw the histogram with the specified number of bins
-      hist(x, breaks = bins, col = 'darkgray', border = 'white')
+   output$intro <- renderUI({
+    
+     intro1 <- h3("Welcome!")
+     intro2 <- p("This application was created by Richard Qiu for Gov 1005 at Harvard.")
+     
+     HTML(paste(intro1, intro2))
+       
    })
+   
+   
+   output$survey_per_capita_map <- renderLeaflet({
+     
+     
+   })
+   
 }
 
 # Run the application 
