@@ -80,7 +80,8 @@ insurance_per <-
   select(-starts_with("remove"), -starts_with("margin")) %>% 
   slice(1:51) %>% 
   gather(year, per, -state, -medicaid) %>% 
-  mutate(year = str_remove(year, "per_"))
+  mutate(year = str_remove(year, "per_"),
+         per = 100 - per)
 ```
 
 
@@ -169,8 +170,56 @@ measles_insurace_lm <- lm(measles_per ~ per_2016, measles_insurance)
 ```
 
 
-```{r}
-write_rds(raw, "temp.rds")
+```{r vax_recode}
+# Relabel vaccinations into binary state
+# Either adequate or inadequate
+# Based on CDC recommended immunization schedule
+
+vax_recode <-
+  raw %>% 
+  mutate(# Similarly, there exist 2- and 3-dose caccines for Rotavirus
+         # Rotarix (GlaxoSmithKline) is 2-dose, RotaTeq (Merck) is 3-dose
+         # Assumed that 1st vaccination dose is indicative of remainder of given vaccine schedule
+         # i.e. if the first dose type is "RM" for "ROTATEQ (MERCK)" then the remainder of Rotavirus vaccines
+         # are also from Merck
+         rota = case_when(P_NUMROT == 0 ~ "none",
+                          P_NUMROT == 1 ~ "inadequate",
+                          P_NUMROT == 2 && XROTTY1 == "RM" ~ "inadequate",
+                          P_NUMROT == 2 && XROTTY1 == "RG" ~ "adequate",
+                          P_NUMROT >= 3 ~ "adequate"),
+    
+         # There exist both 2- and 3-dose vaccines for Hep A, but based on Rotavirus dose-vaccine matching,
+         # No need to distinguish by dose--everyone who takes 2+ doses completes the vaccine schedule
+         # Therefore, in the survey data, 2 doses and up counted as "adequate"
+         hepa = case_when(P_NUMHEA == 0 ~ "none",
+                          P_NUMHEA == 1 ~ "inadequate",
+                          P_NUMHEA >= 2 ~ "adequate"),
+         
+         # There exist both 2- and 3-dose vaccines for Hep A
+         # However, 2 doses and up counted as "adequate"
+         hepb = case_when(P_NUMHEP == 0 ~ "none",
+                          P_NUMHEP == 1 ~ "inadequate",
+                          P_NUMHEP >= 2 ~ "adequate"),
+         
+         # 4 doeses of DTap recommended by 36 months
+         dtap = case_when(P_NUMDTP == 0 ~ "none",
+                          P_NUMDTP> 0 && P_NUMDTP < 4 ~ "inadequate",
+                          P_NUMDTP >= 4 ~ "adequate"))
+  
+
+
+```
+
+
+
+```{r vax_factor}
+
+vax_factor <-
+  raw %>%
+  transmute(state_code,
+            measles = as.factor(P_NUMMMR),
+            
+
 
 ```
 
