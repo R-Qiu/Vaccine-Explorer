@@ -38,11 +38,11 @@ fips <-
 # Created from .DAT files in .R scripts in /format_data/ folder
 # Convert each RData object into a tibble
 
-load("NISPUF12.RData")
-load("NISPUF13.RData")
-load("NISPUF14.RData")
-load("NISPUF15.RData")
-load("NISPUF16.RData")
+load("import_data/NISPUF12.RData")
+load("import_data/NISPUF13.RData")
+load("import_data/NISPUF14.RData")
+load("import_data/NISPUF15.RData")
+load("import_data/NISPUF16.RData")
 
 raw_12 <- as_tibble(NISPUF12)
 raw_13 <- as_tibble(NISPUF13)

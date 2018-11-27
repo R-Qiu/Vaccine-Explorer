@@ -40,7 +40,7 @@ library(tidyverse)
 library(Hmisc) #TO USE contents()
 
 #---USE SLASH(/) TO SEPERATE A FILE PATH---#
-PUF <- ".."
+PUF <- "."
 
 flatfile <- "./NISPUF15.DAT"
 
