@@ -21,6 +21,7 @@ library(stringr)
 library(tidyverse)
 library(Hmisc)
 
+
 # Load in data for FIPS codes from tigris
 # distinct() essentially removes the county codes from the dataset
 # Make state_code numeric and state_name lowercase to facilitate joining with other data
@@ -34,7 +35,9 @@ fips <-
          state_name = str_to_lower(state_name))
 
 
-# Load in CDC immunization survey data
+# Load in CDC National Immunization Survey data
+# From https://www.cdc.gov/vaccines/imz-managers/nis/about.html
+# Retrieved November 2018
 # Created from .DAT files in .R scripts in /format_data/ folder
 # Convert each RData object into a tibble
 
@@ -52,8 +55,7 @@ raw_16 <- as_tibble(NISPUF16)
 
 
 # Bind all years into a masive tibble, with each one ID'd by year
-# Left join with fips codes
-
+# Left join with fips codes to ID states
 raw <- 
   bind_rows("2012" = raw_12,
             "2013" = raw_13,
@@ -65,33 +67,45 @@ raw <-
   left_join(fips, by= "state_code")
 
 
-# Add custom names for insurance data
+# Read in insurance data with custom col names 
+# Data from US Census Bureau
+# Retrieved from Table 6 from https://www.census.gov/library/publications/2017/demo/p60-260.html
 
+# Decision to use Census Bureau elaborated on in explore.Rmd
+# In summary, through the CDC survey asks for insurance coverage, only households with adequate healthcare provider information count are valid responses in the survey.
+# As may be expected, the CDC numbers therefore skew high, and Census data is used in lieu
 raw_insurance_cols <- c("state", "medicaid", "per_2013", "margin_2013", "per_2014", "margin_2014", "per_2015", "margin_2015", "per_2016", "margin_2016", "remove_1", "remove_2", "remove_3", "remove_4")
-
 raw_insurance_per <- 
   read_excel("table6.xls", skip = 12, col_names = raw_insurance_cols) 
 
 insurance_per <- 
   raw_insurance_per %>% 
+  
+  # Remove non-data rows
   remove_empty() %>% 
+  slice(1:51) %>%
+  
+  # General formatting tweaks
   mutate(state = str_to_lower(str_remove_all(state, "[[:punct:]]")),
          medicaid = str_to_lower(medicaid)) %>% 
   select(-starts_with("remove"), -starts_with("margin")) %>% 
-  slice(1:51) %>% 
-  gather(year, per, -state, -medicaid) %>% 
+
+  # Make data tidy
+  gather(year, per_ins, -state, -medicaid) %>% 
   mutate(year = str_remove(year, "per_"),
-         per = 100 - per)
-```
-
-
-
-```{r}
-state_counts <-
-  raw %>% 
-  select(STATE) %>% 
-  count(STATE)
+         per_ins = 100 - per_ins) %>% 
   
+  # Recode Medicaid expansion by year
+  # "y" represents medicaid expansion on January 1st for year in question
+  # Medicaid expansion dates confirmed with timeline from Henry J Kaiser Family Foundation 
+  # https://www.kff.org/medicaid/issue-brief/status-of-state-medicaid-expansion-decisions-interactive-map/
+  mutate(expansion_year = case_when(medicaid == "y" ~ 2014,
+                                    medicaid == "^y" ~ 2015,
+                                    medicaid == "+y" ~ 2016),
+         medicaid = case_when(year >= expansion_year ~ "y",
+                              year < expansion_year ~ "n",
+                              is.na(expansion_year) ~ "n"))
+
 
 ```
 
@@ -171,57 +185,114 @@ measles_insurace_lm <- lm(measles_per ~ per_2016, measles_insurance)
 
 
 ```{r vax_recode}
-# Relabel vaccinations into binary state
-# Either adequate or inadequate
+# Relabel vaccinations into either adequate, incomplete, or none
 # Based on CDC recommended immunization schedule
 
 vax_recode <-
   raw %>% 
-  mutate(# Similarly, there exist 2- and 3-dose caccines for Rotavirus
+  
+  # Removes responses w/o adequate vaccine provider info (essentially, no response since survey is provider based)
+  filter(PDAT == 1) %>% 
+  
+  mutate(# There exist 2- and 3-dose vaccines for Rotavirus
          # Rotarix (GlaxoSmithKline) is 2-dose, RotaTeq (Merck) is 3-dose
          # Assumed that 1st vaccination dose is indicative of remainder of given vaccine schedule
          # i.e. if the first dose type is "RM" for "ROTATEQ (MERCK)" then the remainder of Rotavirus vaccines
          # are also from Merck
+         # Unknown vaccine brands assumed to be 2-dose
+         # All Rotavirus vaccines should be completed before 19 months, no need to account for child age
          rota = case_when(P_NUMROT == 0 ~ "none",
-                          P_NUMROT == 1 ~ "inadequate",
-                          P_NUMROT == 2 && XROTTY1 == "RM" ~ "inadequate",
-                          P_NUMROT == 2 && XROTTY1 == "RG" ~ "adequate",
+                          P_NUMROT == 1 ~ "incomplete",
+                          P_NUMROT == 2 & XROTTY1 == "RM" ~ "incomplete",
+                          P_NUMROT == 2 & XROTTY1 == "RG" ~ "adequate",
+                          P_NUMROT == 2 & XROTTY1 == "RO" ~ "adequate",
                           P_NUMROT >= 3 ~ "adequate"),
     
          # There exist both 2- and 3-dose vaccines for Hep A, but based on Rotavirus dose-vaccine matching,
          # No need to distinguish by dose--everyone who takes 2+ doses completes the vaccine schedule
          # Therefore, in the survey data, 2 doses and up counted as "adequate"
+         # All childhood HepA vaccines should be completed by 12 months, no need to account for child age
          hepa = case_when(P_NUMHEA == 0 ~ "none",
-                          P_NUMHEA == 1 ~ "inadequate",
+                          P_NUMHEA == 1 ~ "incomplete",
                           P_NUMHEA >= 2 ~ "adequate"),
          
          # There exist both 2- and 3-dose vaccines for Hep A
          # However, 2 doses and up counted as "adequate"
+         # All childhood HepB vaccines shold be completed by 18 months, no need to account for child age
          hepb = case_when(P_NUMHEP == 0 ~ "none",
-                          P_NUMHEP == 1 ~ "inadequate",
+                          P_NUMHEP == 1 ~ "incomplete",
                           P_NUMHEP >= 2 ~ "adequate"),
          
-         # 4 doeses of DTap recommended by 36 months
+         # 4 doeses of DTap recommended by 18 months, with next dose after 36 months
+         # Therfore, no need to account for child age at time of survey
          dtap = case_when(P_NUMDTP == 0 ~ "none",
-                          P_NUMDTP> 0 && P_NUMDTP < 4 ~ "inadequate",
+                          P_NUMDTP > 0 & P_NUMDTP < 4 ~ "incomplete",
                           P_NUMDTP >= 4 ~ "adequate"))
   
 
-
 ```
 
+```{r vax_year}
+vax_tidy <-
+  vax_recode %>% 
+  select(year, state, state_name, rota, hepa, hepb, dtap) %>% 
+  gather(vaccine, status, -year, -state, -state_name)
+
+vax_year <-
+  vax_tidy %>% 
+  group_by(year, state, state_name) %>% 
+  count(vaccine, status) %>% 
+  group_by(year, state, state_name, vaccine) %>% 
+  mutate(per_vax = 100*n/sum(n)) %>% 
+  select(-n)
+
+```
 
 
 ```{r vax_factor}
 
 vax_factor <-
-  raw %>%
-  transmute(state_code,
-            measles = as.factor(P_NUMMMR),
-            
+  vax_year %>%
+  
+  # Filter out 2012 since no matching 2012 insurance data for now
+  filter(year != 2012) %>% 
+  
+  left_join(insurance_per, by = c("state_name" = "state", "year"))
+
+
+
+  
+
+```
+
+```{r CDC_census_ins}
+
+CDC_ins <-
+  raw %>% 
+  select(year, state_name, INS_STAT_I, PDAT) %>% 
+  filter(year == 2016, PDAT == 1) %>% 
+  mutate(cdc_ins = case_when(INS_STAT_I < 3 ~ "y",
+                             TRUE ~ "n")) %>% 
+  group_by(year, state_name) %>%
+  count(cdc_ins) %>%
+  mutate(CDC_per = 100*n/sum(n)) %>%
+  filter(cdc_ins == "y") %>% 
+  left_join(insurance_per, by = c("state_name" = "state", "year" = "year"))
+  
+CDC_ins %>% 
+  ggplot(aes(x = per_ins, y = CDC_per)) + 
+  geom_point() + 
+  xlim(80, 100) + 
+  ylim(80, 100) + 
+  coord_fixed() +
+  geom_smooth(method = "lm", se = FALSE) + 
+  geom_abline(slope = 1, intercept = 0)
+
+summary(lm(CDC_per ~ per_ins, CDC_ins))
 
 
 ```
+
 
 
 
