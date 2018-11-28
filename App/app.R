@@ -17,27 +17,43 @@ library(sjPlot)
 
 # Define UI for application that draws a histogram
 ui <-
-  navbarPage("Immunizations", 
-    tabPanel("Introduction", htmlOutput("intro")),
-    tabPanel("Exploration", 
-      tabsetPanel("Demographics", leafletOutput("survey_per_capita_map")))
+  navbarPage(strong("Title goes here"), theme = shinytheme("simplex"), 
+             
+    tabPanel("About", wellPanel(htmlOutput("about"))),
+    
+    tabPanel("Explore the Survey"),
+    
+    tabPanel("Influence of Outside Factors"),
+    
+    tabPanel("TODO", wellPanel(htmlOutput("todo")))
+  
   )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
    
-   output$intro <- renderUI({
+   output$about <- renderUI({
     
-     intro1 <- h3("Welcome!")
-     intro2 <- p("This application was created by Richard Qiu for Gov 1005 at Harvard.")
+     intro1 <- h3(strong("Summary"))
+     intro2 <- p("This application allows you to explore the factors influencing vaccination rates in the US from 2013 to 2016")
      
-     HTML(paste(intro1, intro2))
+     intro3 <- h3(strong("Data Sources"))
+     intro4 <- p("Centers for Disease Control (CDC) National Immunization Survey Public Use Files, 2013-2016")
+     
+     intro5 <- h3(strong("Source Code"))
+     intro6 <- p("URL Placeholder")
+     
+     HTML(paste(intro1, intro2, intro3, intro4, intro5, intro6))
        
    })
    
-   
-   output$survey_per_capita_map <- renderLeaflet({
+   output$todo <- renderUI({
      
+     todo1 <- h3(strong("Explore data"))
+     todo2 <- p("CDC survey distribution by wealth, state pop, age?")
+     todo3 <- p("CDC insurance vs Census insurance")
+     
+     HTML(paste(todo1, todo2, todo3))
      
    })
    
