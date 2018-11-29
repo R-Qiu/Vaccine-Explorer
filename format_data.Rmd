@@ -18,6 +18,9 @@ library(sjlabelled)
 library(readxl)
 library(janitor)
 library(stringr)
+library(sjPlot)
+library(gganimate)
+library(tweenr)
 library(tidyverse)
 library(Hmisc)
 
@@ -187,6 +190,7 @@ measles_insurace_lm <- lm(measles_per ~ per_2016, measles_insurance)
 ```{r vax_recode}
 # Relabel vaccinations into either adequate, incomplete, or none
 # Based on CDC recommended immunization schedule
+# Found here: https://www.cdc.gov/vaccines/schedules/easy-to-read/child-easyread.html
 
 vax_recode <-
   raw %>% 
@@ -211,14 +215,19 @@ vax_recode <-
          # There exist both 2- and 3-dose vaccines for Hep A, but based on Rotavirus dose-vaccine matching,
          # No need to distinguish by dose--everyone who takes 2+ doses completes the vaccine schedule
          # Therefore, in the survey data, 2 doses and up counted as "adequate"
-         # All childhood HepA vaccines should be completed by 12 months, no need to account for child age
-         hepa = case_when(P_NUMHEA == 0 ~ "none",
-                          P_NUMHEA == 1 ~ "incomplete",
-                          P_NUMHEA >= 2 ~ "adequate"),
+         # The first dose should be given before 23 months, with a second dose within 6 months of the 1st dose
+         # Benefit of the doubt is given, so the most generous possible binning combinations of age and vaccination
+         # Status are used
+         hepa = case_when(AGEGRP == 1 ~ "adequate",
+                          AGEGRP == 2 & P_NUMHEA == 0 ~ "none",
+                          AGEGRP == 2 & P_NUMHEA >= 1 ~ "adequate",
+                          AGEGRP == 3 & P_NUMHEA == 0 ~ "none",
+                          AGEGRP == 3 & P_NUMHEA == 1 ~ "incomplete",
+                          AGEGRP == 3 & P_NUMHEA >- 2 ~ "adequate"),
          
-         # There exist both 2- and 3-dose vaccines for Hep A
-         # However, 2 doses and up counted as "adequate"
+         # There exist both 2- and 3-dose vaccines for Hep B; 2 doses and up counted as "adequate"
          # All childhood HepB vaccines shold be completed by 18 months, no need to account for child age
+         # HepB detailed schedule found here: https://www.cdc.gov/mmwr/volumes/67/rr/pdfs/rr6701-H.PDF
          hepb = case_when(P_NUMHEP == 0 ~ "none",
                           P_NUMHEP == 1 ~ "incomplete",
                           P_NUMHEP >= 2 ~ "adequate"),
@@ -227,7 +236,15 @@ vax_recode <-
          # Therfore, no need to account for child age at time of survey
          dtap = case_when(P_NUMDTP == 0 ~ "none",
                           P_NUMDTP > 0 & P_NUMDTP < 4 ~ "incomplete",
-                          P_NUMDTP >= 4 ~ "adequate"))
+                          P_NUMDTP >= 4 ~ "adequate"),
+         
+         # 3 doses of IPV (polio vaccine) are recommended by age 18 months, no need to account for child age
+         polio = case_when(P_NUMPOL == 0 ~ "none",
+                           P_NUMPOL == 1 ~ "incomplete",
+                           P_NUMPOL == 2 ~ "incomplete",
+                           P_NUMPOL >= 3 ~ "adequate")
+         
+         )
   
 
 ```
@@ -235,8 +252,8 @@ vax_recode <-
 ```{r vax_year}
 vax_tidy <-
   vax_recode %>% 
-  select(year, state, state_name, rota, hepa, hepb, dtap) %>% 
-  gather(vaccine, status, -year, -state, -state_name)
+  select(year, state, state_name, rota, hepa, hepb, dtap, polio) %>% 
+  gather(vaccine, status, -year, -state, -state_name) 
 
 vax_year <-
   vax_tidy %>% 
@@ -244,6 +261,7 @@ vax_year <-
   count(vaccine, status) %>% 
   group_by(year, state, state_name, vaccine) %>% 
   mutate(per_vax = 100*n/sum(n)) %>% 
+  ungroup() %>% 
   select(-n)
 
 ```
@@ -257,12 +275,12 @@ vax_factor <-
   # Filter out 2012 since no matching 2012 insurance data for now
   filter(year != 2012) %>% 
   
-  left_join(insurance_per, by = c("state_name" = "state", "year"))
+  left_join(insurance_per, by = c("state_name" = "state", "year")) %>% 
+  ungroup() %>% 
 
+  mutate(year = as.integer(year))
 
-
-  
-
+write_rds(vax_factor, "App/vax_factor.rds")
 ```
 
 ```{r CDC_census_ins}
@@ -290,6 +308,49 @@ CDC_ins %>%
 
 summary(lm(CDC_per ~ per_ins, CDC_ins))
 
+
+```
+
+
+```{r}
+polio_vax <- 
+  vax_factor %>% 
+  filter(vaccine == "polio", 
+         status == "adequate",
+         !is.na(medicaid)) %>% 
+  mutate(color = recode(medicaid, "y" = "firebrick", 
+                                  "n" = "steelblue"),
+         colnum = recode(medicaid, "y" = 1, 
+                                  "n" = 0),
+         ease = "linear")
+
+polio_edit <-
+  polio_vax %>% 
+  arrange(state_name, year) %>% 
+  rename(x = per_ins, y = per_vax) %>% 
+  mutate(ease = "linear")
+
+polio_tween <-
+  polio_vax %>% 
+  tween_elements(time = "year", group = "state_name", ease = "ease", nframes = 60)
+
+polio_vax %>% 
+  ggplot(aes(x = per_ins, y = per_vax, color = colnum)) + 
+     geom_point(size = 2) +
+     scale_colour_identity() +
+     theme_bw(base_size = 20) + 
+     xlim(75, 100) + 
+     ylim(60, 100) +
+     transition_time(year) +
+     labs(y = "Vaccination Rate", title = "Year: {frame_time}")
+
+
+animate(g)  
+
+
+vax_factor_model <- lm(per_vax ~ per_ins, polio_vax)
+
+tab_model(vax_factor_model, show.intercept = FALSE, pred.labels = "Percent Insured", dv.labels = "Percent Vaccinated")
 
 ```
 
