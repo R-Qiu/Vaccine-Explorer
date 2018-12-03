@@ -11,20 +11,25 @@ library(shiny)
 library(shinyWidgets)
 library(shinythemes)
 library(shinycssloaders)
+library(magick)
 library(leaflet)
 library(sjPlot)
-library(gganimate)
+library(animation)
 library(tidyverse)
-
 
 
 vax_factor <- readRDS("vax_factor.rds")
 
-vax_choices <- c("DTaP" = "dtap", 
-                 "Hepatitis A" = "hepa", 
-                 "Hepatitis B" = "hepb", 
-                 "Polio" = "polio",
-                 "Rotavirus" = "rota")
+vax_choices <- tibble("DTaP" = "dtap", 
+                      "Hepatitis A" = "hepa", 
+                       "Hepatitis B" = "hepb", 
+                       "Polio" = "polio",
+                       "Rotavirus" = "rota")
+
+
+
+vax_lookup <- 
+  vax_choices %>% gather(name, symbol)
 
 ui <-
   navbarPage(strong("Vaccine Explorer"), theme = shinytheme("simplex"), 
@@ -45,23 +50,30 @@ ui <-
                 
                 pickerInput("vax_choice", "Pick a vaccine schedule to analyze",
                             choices = vax_choices),
-                checkboxInput("factor_combine", 'Count started but unfinished vaccine schedules as "vaccinated"?', FALSE),
-                br(),
-                htmlOutput("vax_factor_stats")
+                checkboxInput("factor_incomplete", 'Count started but unfinished vaccine schedules as "vaccinated"?', FALSE),
+                checkboxInput("factor_years", "Average across years?", FALSE),
+                br(), br(), 
+                htmlOutput("vax_factor_stats"),
+                br(), br(),
+                htmlOutput("vax_factor_info")
               ),
               
               mainPanel(
-                tabsetPanel(
-                  tabPanel(
-                    "Plot", plotOutput("vax_factor_plot", height = 800)),
-                  tabPanel(
-                    "Animate",
-                    br(),
-                    p("It may take up to a minute for the animated plot to load."),
-                    br(),
-                    withSpinner(imageOutput("vax_factor_anim"), color = "#d9240c"))
+                # tabsetPanel(
+                  # tabPanel("Plot", 
+                    plotOutput("vax_factor_plot", height = 800)
+                    # )
+                  
+                  # Currenty, gganimate is not supported by ShinyApps.io
+                  # ,tabPanel(
+                  #   "Animate",
+                  #   br(),
+                  #   p("It may take up to a minute for the animated plot to load."),
+                  #   br(),
+                  #   withSpinner(imageOutput("vax_factor_anim"), color = "#d9240c"))
                   )
-             ))),
+             # )
+             )),
     
     tabPanel("Map Outside Factors"),
     
@@ -101,107 +113,145 @@ server <- function(input, output) {
    ####################################
    
    
-   combine <- reactive({input$factor_combine})
+   incomplete <- reactive({input$factor_incomplete})
+   years <- reactive({input$factor_years})
    
-   output$vax_factor_plot <- renderPlot({
+   
+   vax_factor_data <- reactive({
      
-     if(combine()){
+     if(incomplete()){
        vax_factor <- 
          vax_factor %>% 
          mutate(status = recode(status, incomplete = "adequate")) %>% 
-         group_by(year, state, vaccine, status) %>% 
-         summarise(per_vax = sum(per_vax), per_ins = unique(per_ins))
+         group_by(year, state, vaccine, status, per_ins) %>% 
+         summarise(per_vax = sum(per_vax)) %>% 
+         ungroup()
      }
+     
      
      vax_factor <- 
        vax_factor %>% 
        filter(status == "adequate",
-              vaccine == input$vax_choice) %>% 
-       mutate(year = as.factor(year))
+              vaccine == input$vax_choice,
+              !is.na(eval(parse(text = input$factor_x))))
+     
+     
+     if(years()){
+       vax_factor <- 
+         vax_factor %>% 
+         group_by(state, vaccine, status) %>% 
+         summarise(per_vax = mean(per_vax),
+                   per_ins = mean(per_ins)) %>% 
+         ungroup()
+     }
+     
+     vax_factor
+     
+   })
+   
+   output$vax_factor_plot <- renderPlot({
+     
+     data <- vax_factor_data()
      
      g <- 
-       ggplot(vax_factor, aes_string(x = input$factor_x, y = "per_vax")) + 
-         geom_point(aes(col = year), size = 4) +
+       ggplot(data, aes_string(x = input$factor_x, y = "per_vax")) + 
          geom_smooth(method = "lm", se = FALSE) + 
-         scale_color_brewer(palette = "Spectral") + 
          theme_bw(base_size = 24) + 
          xlim(75, 100) + 
-         ylim(60, 100)
-         labs(y = "Vaccination Rate")
+         ylim(60, 100) +
+         labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate"))
      
+     if(years()){
+       g <- 
+         g +
+         geom_point(size = 4)
+     }else{
+       g <- 
+         g + 
+         geom_point(aes(col = as.factor(year)), size = 4) + 
+         scale_color_brewer(palette = "Spectral") + 
+         labs(color = "Year")
+     }
      
      g
      
    })
 
    
-   
-   output$vax_factor_anim <- renderImage({
-     
-     if(combine()){
-       vax_factor <- 
-         vax_factor %>% 
-         mutate(status = recode(status, incomplete = "adequate")) %>% 
-         group_by(year, state, vaccine, status, per_ins, medicaid) %>% 
-         summarise(per_vax = sum(per_vax))
-     }
-     
-     vax_factor <- 
-       vax_factor %>% 
-       filter(status == "adequate",
-              vaccine == input$vax_choice) %>% 
-              mutate(color = recode(medicaid, "y" = 1, 
-                                              "n" = 0))
-              
-     
-     g <- 
-       ggplot(vax_factor, aes_string(x = input$factor_x, y = "per_vax", color = "color")) + 
-         geom_point(size = 6) +
-         # geom_smooth(method = "lm", se = FALSE) + 
-         theme_bw(base_size = 24) + 
-         xlim(75, 100) + 
-         ylim(60, 100) +
-         labs(y = "Vaccination Rate", title = "Year: {frame_time}") + 
-         scale_color_continuous(name = "Medicare\nExpansion?",low = "firebrick", high = "steelblue") +
-         transition_time(year)
-     
-     options(gganimate.dev_args = list(width = 1000, height = 800))
-     
-     anim_save("outfile.gif", animate(g))
-     
-     list(src = "outfile.gif",
-          contentType = 'image/gif',
-          width = 800,
-          height = 600,
-          alt = "gif of vaccination rates vs insurance rates over time"
-     )}, deleteFile = TRUE)
-     
-   
-   
    output$vax_factor_stats <- renderUI({
-     if(combine()){
-       vax_factor <- 
-         vax_factor %>% 
-         mutate(status = recode(status, incomplete = "adequate")) %>% 
-         group_by(year, state, vaccine, status) %>% 
-         summarise(per_vax = sum(per_vax), per_ins = unique(per_ins))
-     }
      
-     vax_factor <- 
-       vax_factor %>% 
-       filter(status == "adequate",
-              vaccine == input$vax_choice)
+     data <- vax_factor_data()
      
      model_input <- formula(paste(" per_vax ~ ", input$factor_x))
      
-     vax_factor_model <- lm(model_input, vax_factor)
+     vax_factor_model <- lm(model_input, data)
      vax_factor_table <- tab_model(vax_factor_model, show.intercept = FALSE, 
                                    pred.labels = "Percent Insured", dv.labels = "Percent Vaccinated")
      HTML(vax_factor_table$knitr)
      
+     
    })
    
    
+   output$vax_factor_info <- renderUI({
+     
+     stats <- p("Blarg!")
+     
+     HTML(paste(stats))
+     
+   })
+   
+   
+   
+   # Currently, gganimate is not supported by ShinyApps.io
+   #
+   # output$vax_factor_anim <- renderImage({
+   #   
+   #   if(incomplete()){
+   #     vax_factor <- 
+   #       vax_factor %>% 
+   #       mutate(status = recode(status, incomplete = "adequate")) %>% 
+   #       group_by(year, state, vaccine, status, per_ins, medicaid) %>% 
+   #       summarise(per_vax = sum(per_vax)) %>% 
+   #       ungroup()
+   #   }
+   #   
+   #   vax_factor <- 
+   #     vax_factor %>% 
+   #     filter(status == "adequate",
+   #            vaccine == input$vax_choice) %>% 
+   #            mutate(color = recode(medicaid, "y" = 1, 
+   #                                            "n" = 0))
+   #            
+   #   
+   #   g <- 
+   #     ggplot(vax_factor, aes_string(x = input$factor_x, y = "per_vax", color = "color")) + 
+   #       geom_point(size = 6) +
+   #       # geom_smooth(method = "lm", se = FALSE) + 
+   #       theme_bw(base_size = 24) + 
+   #       xlim(75, 100) + 
+   #       ylim(60, 100) +
+   #       labs(y = "Vaccination Rate", title = "Year: {next_state}") + 
+   #       scale_color_continuous(name = "Medicare\nExpansion?",low = "firebrick", high = "steelblue") +
+   #     
+   #     
+   #       # gganimate
+   #     
+   #       transition_states(year, transition_length = 0.5, state_length = 2, wrap = FALSE) + 
+   #       ease_aes('quadratic-in-out')
+   #   
+   #   options(gganimate.dev_args = list(width = 1000, height = 800))
+   #   
+   #   tmpfile <-
+   #     animate(g, renderer = magick_renderer()) %>% 
+   #     image_write_gif(tempfile(fileext = 'gif'), delay = 0.08)
+   #   
+   #   list(src = tmpfile,
+   #        contentType = 'image/gif',
+   #        alt = "gif of vaccination rates vs insurance rates over time"
+   #   )}, deleteFile = TRUE)
+   #   
+   # 
    
    
    
