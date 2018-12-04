@@ -32,15 +32,11 @@ vax_lookup <-
   vax_choices %>% gather(name, symbol)
 
 ui <-
-  navbarPage(strong("Vaccine Explorer"), theme = shinytheme("simplex"), 
+  navbarPage("Vaccine Explorer", theme = shinytheme("simplex"), 
              
     tabPanel("About", wellPanel(htmlOutput("about"))),
-    
-    tabPanel("Explore the Survey"),
-    
-    
-    
-    tabPanel("Outside Factors",
+
+    tabPanel("Explore the Data",
              
              titlePanel("Explore How Various Factors Influence Immunization Rate"),
              sidebarLayout(
@@ -85,8 +81,6 @@ ui <-
              # )
              )),
     
-    tabPanel("Map Outside Factors"),
-    
     tabPanel("TODO", wellPanel(htmlOutput("todo")))
   
   )
@@ -104,8 +98,8 @@ server <- function(input, output) {
      about2 <- p("This application allows you to explore the factors influencing vaccination rates in the US from 2013 to 2016")
      
      about3 <- h3(strong("Data Sources"))
-     about4 <- p("Centers for Disease Control (CDC) National Immunization Survey Public Use Files, 2013-2016")
-     about5 <- p("US Census Bureau: Health Insurance in the United States: 2016 - Tables")
+     about4 <- p("Vaccination rates data from the Centers for Disease Control (CDC) National Immunization Survey Public Use Files, 2013-2016")
+     about5 <- p("Insurance data from the US Census Bureau, Health Insurance in the United States: 2016 - Tables")
      
      about6 <- h3(strong("Source Code"))
      about7 <- p("View the source code ", tags$a(href="https://github.com/R-Qiu/Vaccine-Explorer", "here"), ".")
@@ -163,6 +157,14 @@ server <- function(input, output) {
      
      data <- vax_factor_data()
      
+     caption_pts <- "Each point represents one state in one year."
+     caption_source <- "\nData source: CDC National Immunization Survey"
+     
+     if(years()){
+       caption_pts <- "Each point represents one state."
+     }
+     
+     
      g <- 
        ggplot(data, aes_string(x = input$factor_x, y = "per_vax")) + 
          geom_smooth(method = "lm", se = FALSE) + 
@@ -170,12 +172,13 @@ server <- function(input, output) {
          xlim(75, 100) + 
          ylim(60, 100) +
          labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate (%)"),
-              caption = "Each point represents one state\n\nData source: CDC National Immunization Survey")
+              caption = caption_pts)
      
      if(years()){
        g <- 
          g +
-         geom_point_interactive(size = 1.25)
+         geom_point_interactive(aes(tooltip = str_to_title(state_name)), 
+                                size = 1.25)
      }else{
        g <- 
          g + 
@@ -192,24 +195,18 @@ server <- function(input, output) {
    })
 
    
-   output$vax_factor_stats <- renderUI({
-     
-     data <- vax_factor_data()
-     
-     model_input <- formula(paste(" per_vax ~ ", input$factor_x))
-     
-     vax_factor_model <- lm(model_input, data)
-     vax_factor_table <- tab_model(vax_factor_model, show.intercept = FALSE, 
-                                   pred.labels = "Percent Insured", dv.labels = "Percent Vaccinated")
-     HTML(vax_factor_table$knitr)
-     
-     
-   })
-   
+  
    
    output$vax_factor_time_plot <- renderggiraph({
      
      data <- vax_factor_data()
+     
+     caption_pts <- "Each point represents one state in one year."
+     caption_source <- "\nData source: CDC National Immunization Survey"
+     
+     if(years()){
+       caption_pts <- "Each point represents one state."
+     }
      
      g <- 
        ggplot(data, aes_string(x = input$factor_x, y = "per_vax")) + 
@@ -218,7 +215,7 @@ server <- function(input, output) {
          xlim(75, 100) + 
          ylim(60, 100) +
          labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate (%)"),
-              caption = "Each point represents one state\n\nData source: CDC National Immunization Survey")
+              caption = caption_pts)
      
      g <- 
        g + 
@@ -269,6 +266,22 @@ server <- function(input, output) {
      HTML(paste(anim_caption_point, anim_caption_red, anim_caption_blue, sep = "<br>"))
      
    })
+   
+   
+   output$vax_factor_stats <- renderUI({
+     
+     data <- vax_factor_data()
+     
+     model_input <- formula(paste(" per_vax ~ ", input$factor_x))
+     
+     vax_factor_model <- lm(model_input, data)
+     vax_factor_table <- tab_model(vax_factor_model, show.intercept = FALSE, 
+                                   pred.labels = "Percent Insured", dv.labels = "Percent Vaccinated")
+     HTML(vax_factor_table$knitr)
+     
+     
+   })
+   
    
    
    output$vax_factor_info <- renderUI({
@@ -324,25 +337,23 @@ server <- function(input, output) {
    
    output$todo <- renderUI({
      
-     todoh1 <- h3(strong("Explore"))
-     todoh11 <- p("CDC survey distribution by wealth, state pop, age?")
-     todoh12 <- p("CDC insurance vs Census insurance")
+     todoh1 <- h3(strong("Background and Definitions Tab"))
+     todoh11 <- p("Define schedule and each vaccine")
      
      todoh2 <- h3(strong("Graph"))
      todoh21 <- p("Vax rate vs income")
-     todoh22 <- p("Factors influencing incomplete vaccines?")
-     todoh23 <- p(tags$s("Years seem difficult to distinguish, perhaps some sort of time-animation"))
-     todoh24 <- p("Explanatory blurbs would be useful")
-     todoh25 <- p("Resolution/legend on animation")
+     todoh22 <- p("Factors influencing incomplete vaccines? Option or tab")
+     todoh23 <- p("Explanatory blurbs")
+     todoh24 <- p("Legend on animation")
+     todoh25 <- p("Merge 'Plot' and 'Plot Over Time' to singe tab w/ color options")
+     todoh26 <- p("Clean up axis labels")
+     todoh27 <- p("Before/after medicare expansion tab violin plots w/ years before/after?")
+     todoh28 <- p("Insurance data/income data going to 2008?")
+     todoh29 <- p("More vaccines: Varicella (Chickenpox), MMR, PCV13")
      
-     todoh3 <- h3(strong("Others"))
-     todoh31 <- p("before/after medicare expansion? may need more insurance data for this")
-     todoh32 <- p("Mapping would be cool")
      
-     
-     HTML(paste(todoh1, todoh11, todoh12, 
-                todoh2, todoh21, todoh22, todoh23, todoh24, todoh25,
-                todoh3, todoh31, todoh32))
+     HTML(paste(todoh1, todoh11, 
+                todoh2, todoh21, todoh22, todoh23, todoh24, todoh25, todoh26, todoh27))
      
    })
    
