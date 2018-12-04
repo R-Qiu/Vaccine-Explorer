@@ -42,7 +42,7 @@ library(Hmisc) #TO USE contents()
 #---USE SLASH(/) TO SEPERATE A FILE PATH---#
 PUF <- "."
 
-flatfile <- "./NISPUF11.DAT"
+flatfile <- "./NISPUF10.DAT"
 
 
 
