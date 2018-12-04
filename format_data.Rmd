@@ -121,7 +121,10 @@ insurance_per <-
                                     medicaid == "+y" ~ 2016),
          medicaid = case_when(year >= expansion_year ~ "y",
                               year < expansion_year ~ "n",
-                              is.na(expansion_year) ~ "n"))
+                              is.na(expansion_year) ~ "n"),
+         medicaid = as.factor(medicaid),
+         medicaid_num = recode(medicaid, "y" = 1,
+                                         "n" = 0))
 
 
 # Read in Census Bureau population estimate data
@@ -160,7 +163,7 @@ pop <-
   mutate(per_pop = 100*pop/sum(pop))
 
 
-# Read in historical poverty data from Census Bureau
+# Read in and tidy up historical poverty data from Census Bureau
 # Source: https://www.census.gov/data/tables/time-series/demo/income-poverty/historical-poverty-people.html
 # Only percentages extracted from Table 21 from relevant years
 
@@ -168,6 +171,11 @@ raw_pov <-
   read_excel("histpov.xlsx")
 
 pov <- 
+  raw_pov %>% 
+  rename(state = STATE) %>% 
+  mutate(state = str_to_lower(state)) %>% 
+  gather(year, per_pov, -state) %>% 
+  mutate(year = as.integer(year))
   
 
 
@@ -353,7 +361,7 @@ polio_vax <-
          !is.na(medicaid)) %>% 
   mutate(color = recode(medicaid, "y" = "firebrick", 
                                   "n" = "steelblue"),
-         colnum = recode(medicaid, "y" = 1, 
+         medicaid = recode(medicaid, "y" = 1, 
                                   "n" = 0),
          ease = "linear")
 

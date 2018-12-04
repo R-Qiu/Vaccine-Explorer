@@ -11,10 +11,10 @@ library(shiny)
 library(shinyWidgets)
 library(shinythemes)
 library(shinycssloaders)
-library(magick)
-library(leaflet)
 library(sjPlot)
-library(animation)
+library(ggiraph)
+library(plotly)
+library(stringr)
 library(tidyverse)
 
 
@@ -45,24 +45,34 @@ ui <-
              titlePanel("Explore How Various Factors Influence Immunization Rate"),
              sidebarLayout(
               sidebarPanel(
-                pickerInput("factor_x", "Examine the influence of an outside variable",
+                pickerInput("factor_x", strong("Examine the influence of an outside variable"),
                             choices = c("Insurance" = "per_ins")),
                 
-                pickerInput("vax_choice", "Pick a vaccine schedule to analyze",
+                pickerInput("vax_choice", strong("Pick a vaccine schedule to analyze"),
                             choices = vax_choices),
                 checkboxInput("factor_incomplete", 'Count started but unfinished vaccine schedules as "vaccinated"?', FALSE),
                 checkboxInput("factor_years", "Average across years?", FALSE),
                 br(), br(), 
-                htmlOutput("vax_factor_stats"),
+                htmlOutput("vax_factor_info"),
                 br(), br(),
-                htmlOutput("vax_factor_info")
+                htmlOutput("vax_factor_stats")
               ),
               
               mainPanel(
-                # tabsetPanel(
-                  # tabPanel("Plot", 
-                    plotOutput("vax_factor_plot", height = 800)
-                    # )
+                tabsetPanel(id = "tabs",
+                tabPanel("Plot",
+                      
+                    ggiraphOutput("vax_factor_plot", height = 800)
+                        ), 
+                
+                tabPanel("Plot Over Time", 
+                         ggiraphOutput("vax_factor_time_plot", height = 800)),
+                
+                tabPanel("animate",
+                         plotlyOutput("animate", height = 700),
+                         br(),
+                         htmlOutput("anim_caption"))
+                )
                   
                   # Currenty, gganimate is not supported by ShinyApps.io
                   # ,tabPanel(
@@ -123,7 +133,7 @@ server <- function(input, output) {
        vax_factor <- 
          vax_factor %>% 
          mutate(status = recode(status, incomplete = "adequate")) %>% 
-         group_by(year, state, vaccine, status, per_ins) %>% 
+         group_by(year, state, state_name, medicaid, medicaid_num, vaccine, status, per_ins) %>% 
          summarise(per_vax = sum(per_vax)) %>% 
          ungroup()
      }
@@ -139,7 +149,7 @@ server <- function(input, output) {
      if(years()){
        vax_factor <- 
          vax_factor %>% 
-         group_by(state, vaccine, status) %>% 
+         group_by(state, state_name, vaccine, status) %>% 
          summarise(per_vax = mean(per_vax),
                    per_ins = mean(per_ins)) %>% 
          ungroup()
@@ -149,31 +159,35 @@ server <- function(input, output) {
      
    })
    
-   output$vax_factor_plot <- renderPlot({
+   output$vax_factor_plot <- renderggiraph({
      
      data <- vax_factor_data()
      
      g <- 
        ggplot(data, aes_string(x = input$factor_x, y = "per_vax")) + 
          geom_smooth(method = "lm", se = FALSE) + 
-         theme_bw(base_size = 24) + 
+         theme_bw(base_size = 12) + 
          xlim(75, 100) + 
          ylim(60, 100) +
-         labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate"))
+         labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate (%)"),
+              caption = "Each point represents one state\n\nData source: CDC National Immunization Survey")
      
      if(years()){
        g <- 
          g +
-         geom_point(size = 4)
+         geom_point_interactive(size = 1.25)
      }else{
        g <- 
          g + 
-         geom_point(aes(col = as.factor(year)), size = 4) + 
-         scale_color_brewer(palette = "Spectral") + 
+         geom_point_interactive(aes(col = as.factor(year), 
+                                    tooltip = paste(str_to_title(state_name), year),
+                                    data_id = state), size = 1.25) + 
+         scale_color_brewer(palette = "BrBG") + 
          labs(color = "Year")
      }
      
-     g
+     
+     girafe(code = print(g))
      
    })
 
@@ -193,6 +207,70 @@ server <- function(input, output) {
    })
    
    
+   output$vax_factor_time_plot <- renderggiraph({
+     
+     data <- vax_factor_data()
+     
+     g <- 
+       ggplot(data, aes_string(x = input$factor_x, y = "per_vax")) + 
+         geom_smooth(method = "lm", se = FALSE) + 
+         theme_bw(base_size = 12) + 
+         xlim(75, 100) + 
+         ylim(60, 100) +
+         labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate (%)"),
+              caption = "Each point represents one state\n\nData source: CDC National Immunization Survey")
+     
+     g <- 
+       g + 
+       geom_point_interactive(aes(col = as.factor(medicaid),
+                                  tooltip = paste(str_to_title(state_name), year),
+                              data_id = state), size = 1.25) +
+       scale_color_manual(name = "Medicare\nExpansion?",
+                          values = c("firebrick", "steelblue"))
+     
+     girafe(code = print(g))
+     
+   })
+   
+   
+   
+   output$animate <- renderPlotly({
+     
+     data <- vax_factor_data()
+     
+     anim <-
+       ggplot(data, aes_string(x = input$factor_x, y = "per_vax", frame = "year", color = "medicaid_num")) +
+         geom_point(size = 2.5) +
+         theme_bw() +
+         xlim(75, 100) +
+         ylim(60, 100) +
+         scale_color_continuous(name = "Medicare\nExpansion?",low = "firebrick", high = "steelblue")
+         # labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate (%)"),
+         #      caption = "Each point represents one state\n\nData source: CDC National Immunization Survey")
+
+     
+     anim <-
+       anim %>%
+       animation_opts(5000, transition = 1000, easing = "elastic", redraw = FALSE)
+     
+     
+     ggplotly(anim)
+
+     
+   })
+   
+   
+   output$anim_caption <- renderUI({
+     
+     anim_caption_point <- "Each point represents a state in a given year."
+     anim_caption_red <- paste( tags$span(style="color:red", "Red"), "indicates a state that has not expanded Medicaid under the Affordable Care Act.")
+     anim_caption_blue <- paste( tags$span(style="color:blue", "Blue"), "indicates a state that has expanded Medicaid under the Affordable Care Act.")
+     
+     HTML(paste(anim_caption_point, anim_caption_red, anim_caption_blue, sep = "<br>"))
+     
+   })
+   
+   
    output$vax_factor_info <- renderUI({
      
      stats <- p("Blarg!")
@@ -206,26 +284,11 @@ server <- function(input, output) {
    # Currently, gganimate is not supported by ShinyApps.io
    #
    # output$vax_factor_anim <- renderImage({
-   #   
-   #   if(incomplete()){
-   #     vax_factor <- 
-   #       vax_factor %>% 
-   #       mutate(status = recode(status, incomplete = "adequate")) %>% 
-   #       group_by(year, state, vaccine, status, per_ins, medicaid) %>% 
-   #       summarise(per_vax = sum(per_vax)) %>% 
-   #       ungroup()
-   #   }
-   #   
-   #   vax_factor <- 
-   #     vax_factor %>% 
-   #     filter(status == "adequate",
-   #            vaccine == input$vax_choice) %>% 
-   #            mutate(color = recode(medicaid, "y" = 1, 
-   #                                            "n" = 0))
-   #            
-   #   
+   # 
+   # data <- vax_factor_data()
+   #
    #   g <- 
-   #     ggplot(vax_factor, aes_string(x = input$factor_x, y = "per_vax", color = "color")) + 
+   #     ggplot(data, aes_string(x = input$factor_x, y = "per_vax", color = "color")) + 
    #       geom_point(size = 6) +
    #       # geom_smooth(method = "lm", se = FALSE) + 
    #       theme_bw(base_size = 24) + 
