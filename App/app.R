@@ -18,6 +18,10 @@ library(stringr)
 library(tidyverse)
 
 
+# Chose to ahead and define all the inputs for dropdowns ahead of time
+# Chose to create "lookup tables" to allow for substitution of input back to formatted text
+# This is to simplify axes labelling without needing a bunch of if-else statements
+
 vax_factor <- readRDS("vax_factor.rds")
 
 vax_choices <- tibble("DTaP (Diptheria, Tetanus, Whooping Cough)" = "dtap", 
@@ -45,16 +49,26 @@ factor_lookup <-
   factor_choices %>% 
   gather(name, symbol)
 
+# Year choice defined as as.factor() because of later use of an aes_string() for ggplot
+
 color_choices <-
   tibble("Medicaid Expansion Status" = "medicaid",
          "Year" = "as.factor(year)",
          "None of the above" = "none")
 
+
+
 ui <-
   navbarPage("Vaccine Explorer", theme = shinytheme("simplex"), 
              
-    tabPanel("About", wellPanel(htmlOutput("about"))),
+             
+    tabPanel("About", htmlOutput("about")),
 
+    
+    # Chose to use sidebarPanel with tabs that only for mainPanel
+    # This is because for the most part, choices are the same between the two
+    # Differences in choices (e.g. Addt'l Factors not a choice for animation) accounted for using conditionalPanels
+    
     tabPanel("Explore the Data",
              
              titlePanel("Explore How Various Factors Influence Immunization Rate"),
@@ -144,11 +158,13 @@ server <- function(input, output) {
    
    
    
-   
    ####################################
    # Factors Tab
    ####################################
    
+   
+   # These are the checkboxes to combine incomplete data and combien yearly data, respectively
+   # Made reactive outside of any given renderXYZ function to avoid redundancy
    
    incomplete <- reactive({input$factor_incomplete})
    years <- reactive({input$factor_years})
@@ -200,6 +216,12 @@ server <- function(input, output) {
      
    })
    
+   
+   
+   # Graph for first tab
+   # Chose static interactive scatter plot due to both axes being continuous
+   # ggiraph interactivity chosen over Plotly due to customizability of hover tooltips 
+   # Further, ggiraph allows for closer functionality to ggplot, allowing for finer customization
    
    output$vax_factor_plot <- renderggiraph({
      
@@ -264,7 +286,7 @@ server <- function(input, output) {
      }
 
      
-     # Differentially adds color/interactivity/etc. based on what options are selected
+     # Differentially adds color/interactivity/etc. based on what axes and coloring options are selected
      
      if (years()) {
        g <- 
@@ -369,6 +391,10 @@ server <- function(input, output) {
    })
    
    
+   # Caption for the animation generated here as an HTML element
+   # This is because Plotly animations don't seem to support ggplot captions
+   # As a result, this workaround just places an HTML caption below the plot itself
+   
    output$anim_caption <- renderUI({
      
      anim_caption_point <- "Each point represents a state in a given year."
@@ -379,6 +405,10 @@ server <- function(input, output) {
      
    })
    
+   
+   # Controls the output for the summary statistics section 
+   # Runs a linear model on the data for simplicity and robustness 
+   # Output from sjplot simplified to just the beta for ease of readability
    
    output$vax_factor_stats <- renderUI({
      
