@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-**Undoubtedly, the Affordable Care Act has improved health insurance rates across the US, but how---if at all---has it improved healthcare outcomes?**
+**Undoubtedly, the Affordable Care Act has improved health insurance rates across the US, but how**---**if at all**---**has it improved healthcare outcomes?**
 
 In particular, Vaccine Explorer allows users to get a hands-on look at how Medicaid expansion under the Affordable Care Act has affected vaccination rates across in US in recent years (spoiler alert: it hasn't affected them very much).
 By using Vaccine Explorer, it quickly becomes evident that Medicaid expansion has drastically improved insurance rates in the vast majority of states that have opted in. 
