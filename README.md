@@ -26,7 +26,7 @@ Vaccine Explorer can be found [here](https://rqiu.shinyapps.io/Vaccine-Explorer/
 
 ## Background Information
 
-One major goal of the Affordable Care Act (ACA), commonly known as "Obamacare", was to reduce the number of adults in the US without health insurance. The ACA has tried to accomplish this through two main avenues: the creation of a tightly regulated Health Insurance Marketplace and by allowing states to expand Medicaid coverage to most low-income adults. And while it has generally been accepted that the ACA *has* improved overall health insurance rates in the US, it remains ambiguous how to attribute those gains and whether or not Medicaid expansion has been beneficial. Additionally, it's difficult to determin whether or not the ACA has actually improved healthcare outcomes directly. These are the questions Vaccine Explorer hopes to answer. 
+One major goal of the Affordable Care Act (ACA), commonly known as "Obamacare", was to reduce the number of adults in the US without health insurance. The ACA has tried to accomplish this through two main avenues: the creation of a tightly regulated Health Insurance Marketplace and by allowing states to expand Medicaid coverage to most low-income adults. And while it has generally been accepted that the ACA *has* improved overall health insurance rates in the US, it remains ambiguous how to attribute those gains and whether or not Medicaid expansion has been beneficial. Additionally, it's difficult to determine if the ACA has actually improved healthcare outcomes directly (and if it has, how). These are the questions Vaccine Explorer hopes to answer. 
 
 
 
