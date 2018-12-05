@@ -20,14 +20,21 @@ library(tidyverse)
 
 vax_factor <- readRDS("vax_factor.rds")
 
-vax_choices <- tibble("DTaP" = "dtap", 
+vax_choices <- tibble("DTaP (Diptheria, Tetanus, Whooping Cough)" = "dtap", 
                       "Hepatitis A" = "hepa", 
                       "Hepatitis B" = "hepb", 
-                      "Polio" = "polio",
-                      "Rotavirus" = "rota")
+                      "IPV (Polio)" = "polio",
+                      "Rotavirus" = "rota",
+                      "MMR (Measles, Mumps, Rubella)" = "mmr",
+                      "Varicella (Chickenpox)" = "vrc",
+                      "PCV (Some Pneumonia, Meningitis, Sepsis)" = "pcv")
+
+# Makes a table to lookup full names from symbols for axes labels
+# Regex grabs everything between parenthesis and the preceding space
 
 vax_lookup <- 
-  vax_choices %>% gather(name, symbol)
+  vax_choices %>% gather(name, symbol) %>% 
+  mutate(name = str_remove(name, "\\s\\(.*?\\)$"))
 
 color_choices <-
   tibble("Medicaid Expansion Status" = "medicaid",
@@ -311,19 +318,23 @@ server <- function(input, output) {
      
      todoh2 <- h3(strong("Graph"))
      todoh21 <- p("Vax rate vs income")
-     todoh22 <- p("Factors influencing incomplete vaccines? Option or tab")
+     todoh22 <- p("Clean up anim hovers, more detailed plot hovers (vax complete/started rate, ins/pov rate, medicaid expanded) ")
      todoh23 <- p("Explanatory blurbs")
      todoh24 <- p( tags$s("Legend on animation"))
      todoh25 <- p( tags$s("Merge 'Plot' and 'Plot Over Time' to singe tab w/ color options"))
      todoh26 <- p("Clean up axis labels")
-     todoh27 <- p("Before/after Medicaid expansion tab violin plots w/ years before/after?")
-     todoh28 <- p( tags$s("Insurance data/income data going to 2008?"))
-     todoh29 <- p("More vaccines: Varicella (Chickenpox), MMR, PCV13")
-     todoh210 <- p( tags$s('Conditional stats, "average across years", "addtl factor" w/ animate'))
+     todoh27 <- p( tags$s("Insurance data/income data going to 2008?"))
+     todoh28 <- p( tags$s("More vaccines: Varicella (Chickenpox), MMR, PCV13"))
+     todoh29 <- p( tags$s('Conditional stats, "average across years", "addtl factor" w/ animate'))
+     
+     todoh3 <- h3(strong("For Final Version"))
+     todoh31 <- p("Factors influencing incomplete vaccines? Option or tab")
+     todoh32 <- p("Before/after Medicaid expansion tab violin plots w/ years before/after?")
      
      
      HTML(paste(todoh1, todoh11, 
-                todoh2, todoh21, todoh22, todoh23, todoh24, todoh25, todoh26, todoh27, todoh28, todoh29, todoh210))
+                todoh2, todoh21, todoh22, todoh23, todoh24, todoh25, todoh26, todoh27, todoh28, todoh29, 
+                todoh3, todoh31, todoh32))
      
    })
    

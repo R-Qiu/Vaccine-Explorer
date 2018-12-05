@@ -250,9 +250,24 @@ vax_recode <-
     polio = case_when(P_NUMPOL == 0 ~ "none",
                       P_NUMPOL == 1 ~ "incomplete",
                       P_NUMPOL == 2 ~ "incomplete",
-                      P_NUMPOL >= 3 ~ "adequate")
+                      P_NUMPOL >= 3 ~ "adequate"),
     
-  )
+    # Only one dose of the MMR vaccine is recommended before 19 months, no need to account for child age
+    
+    mmr = case_when(P_NUMMMR == 0 ~ "none",
+                    P_NUMMMR == 1 ~ "adequate"),
+    
+    # Only one dose of the varicella vaccine is recommended before 19 months, no need to account for child age
+    
+    vrc = case_when(P_NUMVRC == 0 ~ "none",
+                    P_NUMVRC == 1 ~ "adequate"),
+    
+    # 4 doses of the PCV vaccine is recommended before age 19, with none until after age 65
+    # Therefore, no need to account for child age
+    
+    pcv = case_when(P_NUMPCV == 0 ~ "none",
+                    P_NUMPCV > 0 & P_NUMPCV < 4 ~ "incomplete",
+                    P_NUMPCV >= 4 ~ "adequate"))
 
 
 
@@ -260,7 +275,7 @@ vax_recode <-
 
 vax_tidy <-
   vax_recode %>% 
-  select(year, state, state_name, rota, hepa, hepb, dtap, polio) %>% 
+  select(year, state, state_name, rota:pcv) %>% 
   gather(vaccine, status, -year, -state, -state_name) 
 
 
@@ -285,7 +300,7 @@ vax_factor <-
   filter(year != 2012) %>% 
   
   left_join(ins, by = c("state_name" = "state", "year")) %>% 
-  ungroup()
+  left_join(pov, by = c("state_name" = "state", "year"))
 
 
 write_rds(vax_factor, "App/vax_factor.rds")
