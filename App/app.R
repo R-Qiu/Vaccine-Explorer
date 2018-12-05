@@ -49,14 +49,29 @@ ui <-
                 
                 pickerInput("vax_choice", strong("Pick a vaccine schedule to analyze"),
                             choices = vax_choices),
-                pickerInput("color_choice", strong("Distinguish points by an additional factor"),
-                             choices = color_choices),
+                
+                conditionalPanel(
+                  condition = "input.tabs == 'Plot Factors'",
+                  pickerInput(
+                    "color_choice", strong("Distinguish points by an additional factor"),
+                    choices = color_choices)),
+                
+                br(),
                 checkboxInput("factor_incomplete", 'Count started but unfinished vaccine schedules as "vaccinated"?', FALSE),
-                checkboxInput("factor_years", "Average across years?", FALSE),
+                
+                conditionalPanel(
+                  condition = "input.tabs == 'Plot Factors'",
+                  checkboxInput("factor_years", "Average across years?", FALSE)
+                ),
+                
+                
                 br(), br(), 
                 htmlOutput("vax_factor_info"),
+                
                 br(), br(),
-                htmlOutput("vax_factor_stats")
+                conditionalPanel(
+                  condition = "input.tabs == 'Plot Factors'",
+                  htmlOutput("vax_factor_stats")) 
               ),
               
               mainPanel(
@@ -233,7 +248,7 @@ server <- function(input, output) {
          theme_bw() +
          xlim(NA, 100) +
          ylim(NA, 100) +
-         scale_color_continuous(guide = FALSE, low = "firebrick", high = "steelblue")
+         scale_color_continuous(guide = FALSE, low = "firebrick", high = "steelblue") +
          labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate (%)"))
 
      
@@ -304,7 +319,7 @@ server <- function(input, output) {
      todoh27 <- p("Before/after Medicaid expansion tab violin plots w/ years before/after?")
      todoh28 <- p( tags$s("Insurance data/income data going to 2008?"))
      todoh29 <- p("More vaccines: Varicella (Chickenpox), MMR, PCV13")
-     todoh210 <- p('Conditional stats, "average across years", "addtl factor" w/ animate')
+     todoh210 <- p( tags$s('Conditional stats, "average across years", "addtl factor" w/ animate'))
      
      
      HTML(paste(todoh1, todoh11, 
