@@ -3,7 +3,6 @@
 # Richard Qiu
 
 
-
 # Load packages
 # Tidyverse MUST be loaded BEFORE Hmisc to avoid a function conflict with importing the data
 # Tigris needed for FIPS codes
@@ -295,10 +294,6 @@ vax_year <-
 
 vax_factor <-
   vax_year %>%
-  
-  # Filter out 2012 since no matching 2012 insurance data for now
-  filter(year != 2012) %>% 
-  
   left_join(ins, by = c("state_name" = "state", "year")) %>% 
   left_join(pov, by = c("state_name" = "state", "year"))
 
