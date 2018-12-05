@@ -111,7 +111,7 @@ insurance_hist <-
   # All of which have not expanded medicaid coverae
   
   mutate(year = as.integer(str_remove(year, "per_")),
-         medicaid = "n",
+         medicaid = "No",
          medicaid_num = 0) %>% 
   filter(year < 2013 & year > 2009)
   
@@ -151,12 +151,12 @@ insurance_med <-
   mutate(expansion_year = case_when(medicaid == "y" ~ 2014,
                                     medicaid == "^y" ~ 2015,
                                     medicaid == "+y" ~ 2016),
-         medicaid = case_when(year >= expansion_year ~ "y",
-                              year < expansion_year ~ "n",
-                              is.na(expansion_year) ~ "n"),
+         medicaid = case_when(year >= expansion_year ~ "Yes",
+                              year < expansion_year ~ "No",
+                              is.na(expansion_year) ~ "No"),
          medicaid = as.factor(medicaid),
-         medicaid_num = recode(medicaid, "y" = 1,
-                               "n" = 0))
+         medicaid_num = recode(medicaid, "Yes" = 1,
+                               "No" = 0))
 
 expansion_year_lookup <- 
   insurance_med %>% 

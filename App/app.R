@@ -22,14 +22,17 @@ vax_factor <- readRDS("vax_factor.rds")
 
 vax_choices <- tibble("DTaP" = "dtap", 
                       "Hepatitis A" = "hepa", 
-                       "Hepatitis B" = "hepb", 
-                       "Polio" = "polio",
-                       "Rotavirus" = "rota")
-
-
+                      "Hepatitis B" = "hepb", 
+                      "Polio" = "polio",
+                      "Rotavirus" = "rota")
 
 vax_lookup <- 
   vax_choices %>% gather(name, symbol)
+
+color_choices <-
+  tibble("Medicaid Expansion Status" = "medicaid",
+         "Year" = "as.factor(year)",
+         "None of the above" = "none")
 
 ui <-
   navbarPage("Vaccine Explorer", theme = shinytheme("simplex"), 
@@ -46,6 +49,8 @@ ui <-
                 
                 pickerInput("vax_choice", strong("Pick a vaccine schedule to analyze"),
                             choices = vax_choices),
+                pickerInput("color_choice", strong("Distinguish points by an additional factor"),
+                             choices = color_choices),
                 checkboxInput("factor_incomplete", 'Count started but unfinished vaccine schedules as "vaccinated"?', FALSE),
                 checkboxInput("factor_years", "Average across years?", FALSE),
                 br(), br(), 
@@ -56,29 +61,19 @@ ui <-
               
               mainPanel(
                 tabsetPanel(id = "tabs",
-                tabPanel("Plot",
+                tabPanel("Plot Factors",
                       
                     ggiraphOutput("vax_factor_plot", height = 800)
                         ), 
-                
-                tabPanel("Plot Over Time", 
-                         ggiraphOutput("vax_factor_time_plot", height = 800)),
-                
-                tabPanel("animate",
-                         plotlyOutput("animate", height = 700),
+
+                tabPanel("Animate Factors Through Time",
+                         plotlyOutput("animate", height = 600, width = 800),
                          br(),
                          htmlOutput("anim_caption"))
                 )
                   
-                  # Currenty, gganimate is not supported by ShinyApps.io
-                  # ,tabPanel(
-                  #   "Animate",
-                  #   br(),
-                  #   p("It may take up to a minute for the animated plot to load."),
-                  #   br(),
-                  #   withSpinner(imageOutput("vax_factor_anim"), color = "#d9240c"))
-                  )
-             # )
+                 
+              )
              )),
     
     tabPanel("TODO", wellPanel(htmlOutput("todo")))
@@ -157,73 +152,70 @@ server <- function(input, output) {
      
      data <- vax_factor_data()
      
-     caption_pts <- "Each point represents one state in one year."
-     caption_source <- "\nData source: CDC National Immunization Survey"
+     caption_hover <- "Hover over a point for more info. \n"
+     caption_states <- "Each point represents one state in one year.\n\n"
+     caption_source <- "Data source: CDC National Immunization Survey"
      
      if(years()){
-       caption_pts <- "Each point represents one state."
+       caption_states <- "Each point represents one state."
      }
+     
+     caption_pts <- paste(caption_hover, caption_states, caption_source, sep = "")
      
      
      g <- 
        ggplot(data, aes_string(x = input$factor_x, y = "per_vax")) + 
          geom_smooth(method = "lm", se = FALSE) + 
          theme_bw(base_size = 12) + 
-         xlim(75, 100) + 
-         ylim(60, 100) +
+         xlim(NA, 100) + 
+         ylim(NA, 100) +
          labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate (%)"),
               caption = caption_pts)
      
-     if(years()){
+     if (years()){
        g <- 
          g +
          geom_point_interactive(aes(tooltip = str_to_title(state_name)), 
-                                size = 1.25)
-     }else{
+                                size = 1) +
+         geom_rug(alpha = 0.5)
+       
+     } else if (input$color_choice == "none"){
+       
+       
        g <- 
          g + 
-         geom_point_interactive(aes(col = as.factor(year), 
-                                    tooltip = paste(str_to_title(state_name), year),
-                                    data_id = state), size = 1.25) + 
-         scale_color_brewer(palette = "BrBG") + 
+         geom_point_interactive(aes(tooltip = paste(str_to_title(state_name),", ", year, sep = ""),
+                                    data_id = state), size = 1) + 
+         geom_rug(alpha = 0.25)
+       
+       
+     } else {
+       
+       g <- 
+         g + 
+         geom_point_interactive(aes(col = eval(parse(text = input$color_choice)), 
+                                    tooltip = paste(str_to_title(state_name),", ", year, sep = ""),
+                                    data_id = state), size = 1) +
          labs(color = "Year")
+       
+       if (input$color_choice == "year"){
+         
+         g <- 
+           g +
+           geom_rug()
+         
+       } else if (input$color_choice == "medicaid"){
+         
+         g <-
+           g +
+           geom_rug(aes(col = eval(parse(text = input$color_choice))), alpha = 0.4) +
+           scale_color_manual(name = "Medicaid\nExpansion?",
+                              values = c("firebrick", "steelblue"))
+         
+       }
      }
-     
-     
-     girafe(code = print(g))
-     
-   })
-
-   
-  
-   
-   output$vax_factor_time_plot <- renderggiraph({
-     
-     data <- vax_factor_data()
-     
-     caption_pts <- "Each point represents one state in one year."
-     caption_source <- "\nData source: CDC National Immunization Survey"
-     
-     if(years()){
-       caption_pts <- "Each point represents one state."
-     }
-     
-     g <- 
-       ggplot(data, aes_string(x = input$factor_x, y = "per_vax")) + 
-         geom_smooth(method = "lm", se = FALSE) + 
-         theme_bw(base_size = 12) + 
-         xlim(75, 100) + 
-         ylim(60, 100) +
-         labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate (%)"),
-              caption = caption_pts)
-     
-     g <- 
-       g + 
-       geom_point_interactive(aes(col = as.factor(medicaid),
-                                  tooltip = paste(str_to_title(state_name), year),
-                              data_id = state), size = 1.25) +
-       scale_color_manual(name = "Medicare\nExpansion?",
-                          values = c("firebrick", "steelblue"))
+       
+       
      
      girafe(code = print(g))
      
@@ -239,11 +231,10 @@ server <- function(input, output) {
        ggplot(data, aes_string(x = input$factor_x, y = "per_vax", frame = "year", color = "medicaid_num")) +
          geom_point(size = 2.5) +
          theme_bw() +
-         xlim(75, 100) +
-         ylim(60, 100) +
-         scale_color_continuous(name = "Medicare\nExpansion?",low = "firebrick", high = "steelblue")
-         # labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate (%)"),
-         #      caption = "Each point represents one state\n\nData source: CDC National Immunization Survey")
+         xlim(NA, 100) +
+         ylim(NA, 100) +
+         scale_color_continuous(guide = FALSE, low = "firebrick", high = "steelblue")
+         labs(y = paste(filter(vax_lookup, symbol==input$vax_choice)["name"], "Vaccination Rate (%)"))
 
      
      anim <-
@@ -294,43 +285,6 @@ server <- function(input, output) {
    
    
    
-   # Currently, gganimate is not supported by ShinyApps.io
-   #
-   # output$vax_factor_anim <- renderImage({
-   # 
-   # data <- vax_factor_data()
-   #
-   #   g <- 
-   #     ggplot(data, aes_string(x = input$factor_x, y = "per_vax", color = "color")) + 
-   #       geom_point(size = 6) +
-   #       # geom_smooth(method = "lm", se = FALSE) + 
-   #       theme_bw(base_size = 24) + 
-   #       xlim(75, 100) + 
-   #       ylim(60, 100) +
-   #       labs(y = "Vaccination Rate", title = "Year: {next_state}") + 
-   #       scale_color_continuous(name = "Medicare\nExpansion?",low = "firebrick", high = "steelblue") +
-   #     
-   #     
-   #       # gganimate
-   #     
-   #       transition_states(year, transition_length = 0.5, state_length = 2, wrap = FALSE) + 
-   #       ease_aes('quadratic-in-out')
-   #   
-   #   options(gganimate.dev_args = list(width = 1000, height = 800))
-   #   
-   #   tmpfile <-
-   #     animate(g, renderer = magick_renderer()) %>% 
-   #     image_write_gif(tempfile(fileext = 'gif'), delay = 0.08)
-   #   
-   #   list(src = tmpfile,
-   #        contentType = 'image/gif',
-   #        alt = "gif of vaccination rates vs insurance rates over time"
-   #   )}, deleteFile = TRUE)
-   #   
-   # 
-   
-   
-   
    ####################################
    # TODO Tab
    ####################################
@@ -344,16 +298,17 @@ server <- function(input, output) {
      todoh21 <- p("Vax rate vs income")
      todoh22 <- p("Factors influencing incomplete vaccines? Option or tab")
      todoh23 <- p("Explanatory blurbs")
-     todoh24 <- p("Legend on animation")
-     todoh25 <- p("Merge 'Plot' and 'Plot Over Time' to singe tab w/ color options")
+     todoh24 <- p( tags$s("Legend on animation"))
+     todoh25 <- p( tags$s("Merge 'Plot' and 'Plot Over Time' to singe tab w/ color options"))
      todoh26 <- p("Clean up axis labels")
-     todoh27 <- p("Before/after medicare expansion tab violin plots w/ years before/after?")
-     todoh28 <- p("Insurance data/income data going to 2008?")
+     todoh27 <- p("Before/after Medicaid expansion tab violin plots w/ years before/after?")
+     todoh28 <- p( tags$s("Insurance data/income data going to 2008?"))
      todoh29 <- p("More vaccines: Varicella (Chickenpox), MMR, PCV13")
+     todoh210 <- p('Conditional stats, "average across years", "addtl factor" w/ animate')
      
      
      HTML(paste(todoh1, todoh11, 
-                todoh2, todoh21, todoh22, todoh23, todoh24, todoh25, todoh26, todoh27))
+                todoh2, todoh21, todoh22, todoh23, todoh24, todoh25, todoh26, todoh27, todoh28, todoh29, todoh210))
      
    })
    
