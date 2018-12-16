@@ -31,7 +31,7 @@ vax_choices <- tibble("DTaP (Diptheria, Tetanus, Whooping Cough)" = "dtap",
                       "Rotavirus" = "rota",
                       "MMR (Measles, Mumps, Rubella)" = "mmr",
                       "Varicella (Chickenpox)" = "vrc",
-                      "PCV (Some Pneumonia, Meningitis, Sepsis)" = "pcv")
+                      "PCV (Pneumonia, Meningitis, Sepsis)" = "pcv")
 
 # Makes a table to lookup full names from symbols for axes labels
 # Regex grabs everything between parenthesis and the preceding space
@@ -49,6 +49,7 @@ factor_lookup <-
   factor_choices %>% 
   gather(name, symbol)
 
+
 # Year choice defined as as.factor() because of later use of an aes_string() for ggplot
 
 color_choices <-
@@ -63,7 +64,6 @@ ui <-
              
              
     tabPanel("About", htmlOutput("about")),
-
     
     # Chose to use sidebarPanel with tabs that only for mainPanel
     # This is because for the most part, choices are the same between the two
@@ -77,8 +77,12 @@ ui <-
                 pickerInput("factor_x", strong("Examine the influence of an outside variable"),
                             choices = factor_choices),
                 
+                htmlOutput("factor_x_info"), br(), 
+                
                 pickerInput("vax_choice", strong("Pick a vaccine schedule to analyze"),
                             choices = vax_choices),
+                
+                htmlOutput("vax_choice_info"), br(), 
                 
                 # Disables color choice on Animation tab
                 
@@ -88,8 +92,8 @@ ui <-
                     "color_choice", strong("Distinguish points by an additional factor"),
                     choices = color_choices)),
                 
-                br(),
-                checkboxInput("factor_incomplete", 'Count vaccine schedules that are behind as completed?', FALSE),
+                
+                checkboxInput("factor_incomplete", 'Count vaccine schedules that have been started but are behind schedule as completed?', FALSE),
                 
                 # Disables option to average on Animation tab
                 
@@ -100,7 +104,7 @@ ui <-
                 
                 # Disable linear regression summary stats on Animation tab
                 
-                br(), br(),
+                br(), 
                 conditionalPanel(
                   condition = "input.tabs == 'Plot Factors'",
                   htmlOutput("vax_factor_stats")) 
@@ -139,19 +143,35 @@ server <- function(input, output) {
    output$about <- renderUI({
     
      about1 <- h3(strong("Summary"))
-     about2 <- p("This application enables exploration of how poverty rate and insurance rate influence state-level vaccination rates in the US from 2010 to 2016.")
-     about3 <- p("Additionally, this application examines the influence of Medicaid expansion under the Affordable Care Act and how it has influenced vaccination rates over time.")
+     about1_1 <- p(strong("Undoubtedly, the Affordable Care Act has improved health insurance rates across the US, but how---if at all---has it improved healthcare outcomes?"))
+     about1_2 <- p("In particular, Vaccine Explorer allows users to get a hands-on look at how Medicaid expansion under the Affordable Care Act has affected vaccination rates across in US in recent years (spoiler alert: it hasn't affected them very much). By using Vaccine Explorer, it quickly becomes evident that Medicaid expansion has drastically improved insurance rates in the vast majority of states that have opted in. At the same time though, Vaccine Explorer also reveals that Medicaid expansion has done little to improve vaccination rates themselves. Lastly, Vaccine Explorer also uncovers that poverty and insurance rates are associated with vaccination rates, and that this association is stronger for some vaccines than others---revealing a way to measure the perceived importance of certain vaccination schedules.")
      
-     about4 <- h3(strong("Data Sources"))
-     about5 <- p("Vaccination rates data from the Centers for Disease Control (CDC) National Immunization Survey Public Use Files, 2010-2016")
-     about6 <- p("Medicaid Expansion Insurance data (2013-2016) from the US Census Bureau, Health Insurance in the United States: 2016 - Tables")
-     about7 <- p("Historic Insurance data (2010-2012) from the US Census Bureau, Health Insurance Historical Tables - HIC Series.")
-     about8 <- p("Poverty data from the US Census Bureau, Historical Poverty Tables: People and Families - 1959 to 2017")
+     about2 <- h3(strong("Key Takaways"))
+     about2_1 <- p("-States that have opted for Medicaid expansion have seen dramatically improved insurance rates.")
+     about2_2 <- p("-Medicaid expansion does not seem to substantially improve vaccination rates.")
+     about2_3 <- p("-Insurance rates weakly associated with improved vaccination rates while poverty rates weakly associated with worsened vaccination rates.")
+     about2_4 <- p("-Associations stronger in more critical vaccines like Hepatitis B, implying that people tend to opt-out of less critical vaccines.")
+     about2_5 <- p("-Generally, vaccination rates in the US have stagnated with the exception of Rotavirus, which has seen a strong uptick in recent years.")
+     
+     about3 <- h3(strong("Background Information"))
+     about3_1 <- p('One major goal of the Affordable Care Act (ACA), commonly known as "Obamacare", was to reduce the number of adults in the US without health insurance. The ACA has tried to accomplish this through two main avenues: the creation of a tightly regulated Health Insurance Marketplace and by allowing states to expand Medicaid coverage to most low-income adults. And while it has generally been accepted that the ACA has improved overall health insurance rates in the US, it remains ambiguous how to attribute those gains and whether or not Medicaid expansion has been beneficial. Additionally, it\'s difficult to determine if the ACA has actually improved healthcare outcomes directly (and if it has, how). These are the questions Vaccine Explorer hopes to answer.')
+     
+     about8 <- h3(strong("Data Sources"))
+     about8_1 <- p("Vaccination rates data from the Centers for Disease Control (CDC) National Immunization Survey Public Use Files, 2010-2016 (child, 19-35 months of age)")
+     about8_2 <- p("Medicaid Expansion Insurance data (2013-2016) from the US Census Bureau, Health Insurance in the United States: 2016 - Tables")
+     about8_3 <- p("Historic Insurance data (2010-2012) from the US Census Bureau, Health Insurance Historical Tables - HIC Series.")
+     about8_4 <- p("Poverty data from the US Census Bureau, Historical Poverty Tables: People and Families - 1959 to 2017")
+     about8_5 <- p("States' kindergarten immunization requirements from ProCon.org")
+     
      
      about9 <- h3(strong("Source Code"))
-     about10 <- p("View the source code ", tags$a(href="https://github.com/R-Qiu/Vaccine-Explorer", "here"), ".")
+     about9_1 <- p("View the source code ", tags$a(href="https://github.com/R-Qiu/Vaccine-Explorer", "here"), ".")
      
-     HTML(paste(about1, about2, about3, about4, about5, about6, about7, about8, about9, about10))
+     HTML(paste(about1, about1_1, about1_2, br(),
+                about2, about2_1, about2_2, about2_3, about2_4, about2_5, br(),
+                about3, about3_1, br(), 
+                about8, about8_1, about8_2, about8_3, about8_4, about8_5, br(), 
+                about9, about9_1))
        
    })
    
@@ -169,6 +189,24 @@ server <- function(input, output) {
    incomplete <- reactive({input$factor_incomplete})
    years <- reactive({input$factor_years})
    
+   # Computes constant lower bound for given vaccine choice to give perspective when alternating between
+   # Including or excluding vaccine schedules that are behind as complete
+   
+   lower_bound <- reactive({
+     
+     lower_bound <- 
+       vax_factor %>% 
+       filter(status == "adequate",
+              vaccine == input$vax_choice,
+              !is.na(eval(parse(text = input$factor_x)))) %>% 
+       select(per_vax) %>% 
+       arrange(per_vax) %>%
+       head(1) %>% 
+       pull()
+     
+     lower_bound
+     
+   })
    
    # Make reactive data manipulation reactive to avoid performing manipulation twice
    # This way, altered data can be moved imported into each render
@@ -230,6 +268,8 @@ server <- function(input, output) {
      
      data <- vax_factor_data()
      
+     lower_bound <- lower_bound()
+     
      
      # Modifies caption based on which x axis is selected
      # Notably, order of citations changes in order to keep them in order from longest to shortest
@@ -275,14 +315,14 @@ server <- function(input, output) {
        g <-
          g +
          xlim(0, NA) +
-         ylim(NA, 100)
+         ylim(lower_bound, 100)
 
      } else {
 
        g <-
          g +
          xlim(NA, 100) +
-         ylim(NA, 100)
+         ylim(lower_bound, 100)
      }
 
      
@@ -345,6 +385,8 @@ server <- function(input, output) {
      
      data <- vax_factor_data()
      
+     lower_bound <- lower_bound()
+     
      
      # Generates animated Plotly, animating over years
      # TODO: disable toolbar (zoom, etc.)
@@ -369,14 +411,14 @@ server <- function(input, output) {
        anim <-
          anim +
          xlim(0, NA) +
-         ylim(NA, 100)
+         ylim(lower_bound, 100)
        
      } else {
        
        anim <-
          anim +
          xlim(NA, 100) +
-         ylim(NA, 100)
+         ylim(lower_bound, 100)
      }
 
      
@@ -427,11 +469,72 @@ server <- function(input, output) {
    
    
    
-   output$vax_factor_info <- renderUI({
+   output$factor_x_info <- renderUI({
      
-     info <- p("Blarg!")
+     if (input$factor_x == "per_ins") {
+       
+       factor_x_info <- p("Insurance rate is computed as percentage of households with health insurance from any source.")
+       
+     }
      
-     HTML(paste(info))
+     if (input$factor_x == "per_pov") {
+       
+       factor_x_info <- p("Poverty rate is computed as percentage of households below the poverty line")
+       
+     }
+     
+     
+     HTML(paste(factor_x_info))
+     
+   })
+
+   
+   # Vaccination requirements
+   
+   output$vax_choice_info <- renderUI({
+     
+     if (input$vax_choice == "dtap") {
+       vax_choice_info <- p("The DTaP vaccine is a combo vaccine which immunizes against diptheria, pertussis (whooping cough), tetanus. The CDC recommends four does of DTaP for infants by 18 months of age.")
+       vax_choice_info_school <- p("The DTap vaccine is required by all 50 states and DC for entry into public school kindergarten.")
+     }
+
+     if(input$vax_choice == "hepa") {
+       vax_choice_info <- p("The CDC recommends three doses of the hepatitis A vaccine for infants before 23 months of age.")
+       vax_choice_info_school <- p("The hepatitis A vaccine is required by 13 states and DC for entry into public school kindergarten.")
+     }
+
+     if(input$vax_choice == "hepb") {
+       vax_choice_info <- p("The CDC recommends two doses of the hepatitis B vaccine for infants before 19 months of age.")
+       vax_choice_info_school <- p("The hepatitis B vaccine is required by 43 states and DC for entry into public school kindergarten.")
+     }
+
+     if(input$vax_choice == "polio") {
+       vax_choice_info <- p("The IPV vaccine is the injected version of the polio vaccine which is recommended by the CDC (over the oral version).The CDC recommends three doses of IPV for infants before 19 months of age.")
+       vax_choice_info_school <- p("The IPV vaccine is required by all 50 states and DC for entry into public school kindergarten.")
+     }
+
+     if(input$vax_choice == "rota") {
+       vax_choice_info <- p("The CDC recommends three doses of the rotavirus vaccine before 23 months of age.")
+       vax_choice_info_school <- p("The rotavirus vaccine is required by 5 states for entry into public school kindergarten.")
+     }
+    
+     if(input$vax_choice == "mmr") {
+       vax_choice_info <- p("The MMR vaccine is a combo vaccine which immunizes against measles, mumps, and rubella. The CDC recommends one dose of the MMR vaccine before 19 months of age.")
+       vax_choice_info_school <- p("The MMR vaccine is required by 50 states and DC for entry into public school kindergarten.")
+     }
+
+     if(input$vax_choice == "vrc") {
+       vax_choice_info <- p("The varicella vaccine immunizes against chickenpox. The CDC recommends one dose of the varicella vaccine before 19 months of age.")
+       vax_choice_info_school <- p("The varicella vaccine is required by 50 states and DC for entry into public school kindergarten.")
+     }
+
+     if(input$vax_choice == "pcv") {
+       vax_choice_info <- p("The PCV vaccine immunizes against diseases caused by the Strep. Pneumoniae bacteria, which include pneumonia, meningitis, and sepsis. The CDC recommends four doses of the PCV vaccine before 19 months of age.")
+       vax_choice_info_school <- p("The PCV vaccine is required by only 1 state (Connecticut) and DC for entry into public school kindergarten.")
+     }
+     
+     
+     HTML(paste(vax_choice_info, vax_choice_info_school))
      
    })
    

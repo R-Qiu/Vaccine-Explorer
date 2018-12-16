@@ -227,7 +227,7 @@ vax_recode <-
                      AGEGRP == 2 & P_NUMHEA >= 1 ~ "adequate",
                      AGEGRP == 3 & P_NUMHEA == 0 ~ "none",
                      AGEGRP == 3 & P_NUMHEA == 1 ~ "incomplete",
-                     AGEGRP == 3 & P_NUMHEA >- 2 ~ "adequate"),
+                     AGEGRP == 3 & P_NUMHEA >= 2 ~ "adequate"),
     
     # There exist both 2- and 3-dose vaccines for Hep B; 2 doses and up counted as "adequate"
     # All childhood HepB vaccines shold be completed by 18 months, no need to account for child age
