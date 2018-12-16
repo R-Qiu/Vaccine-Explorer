@@ -7,7 +7,7 @@
 In particular, Vaccine Explorer allows users to get a hands-on look at how Medicaid expansion under the Affordable Care Act has affected vaccination rates across in US in recent years (spoiler alert: it hasn't affected them very much).
 By using Vaccine Explorer, it quickly becomes evident that Medicaid expansion has drastically improved insurance rates in the vast majority of states that have opted in. 
 At the same time though, Vaccine Explorer also reveals that Medicaid expansion has done little to improve vaccination rates themselves. 
-Lastly, Vaccine Explorer also uncovers that poverty and insurance rates are associated with vaccination rates, and that this association is stronger for some vaccines than others---implying that some vaccines are "more optional" than others. 
+Lastly, Vaccine Explorer also uncovers that poverty and insurance rates are associated with vaccination rates, and that this association is stronger for some vaccines than others---revealing a way to measure the perceived importance of certain vaccination schedules. 
 
 
 ## Web Application
