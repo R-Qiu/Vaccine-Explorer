@@ -38,6 +38,8 @@ Immunization data was obtained from the [CDC's National Immunization Survey's pu
 
 [Historical state-level poverty data](https://www.census.gov/data/tables/time-series/demo/income-poverty/historical-poverty-people.html) was obtained from the US Census Bureau.
 
+States' [kindergarten immunization requirements](https://vaccines.procon.org/view.resource.php?resourceID=005979) were retrieved from ProCon.org.
+
 
 
 
