@@ -230,6 +230,8 @@ server <- function(input, output) {
    # This way, altered data can be moved imported into each render
    
    vax_factor_data <- reactive({
+     
+     req(input$states)
     
      # Must do incomplete before summarizing percent of "adequate" immunizations per state
      # This is because "incomplete" must get recoded first so that those also get counted as "adequate"
