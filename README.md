@@ -34,7 +34,7 @@ One major goal of the Affordable Care Act (ACA), commonly known as "Obamacare", 
 
 Immunization data was obtained from the [CDC's National Immunization Survey's public-use data files, 2010-2016](https://www.cdc.gov/vaccines/imz-managers/nis/datasets.html).
 
-[Historic](https://www.census.gov/data/tables/time-series/demo/health-insurance/historical-series/hic.html) and recent, Medicaid-expansion encoded data were obtained from the US Census Bureau's Health Insurance Coverage series ([2016](https://www.census.gov/library/publications/2017/demo/p60-260.html), [2017](https://www.census.gov/library/publications/2018/demo/p60-264.html). 
+[Historic](https://www.census.gov/data/tables/time-series/demo/health-insurance/historical-series/hic.html) and recent, Medicaid-expansion encoded data were obtained from the US Census Bureau's Health Insurance Coverage series ([2016](https://www.census.gov/library/publications/2017/demo/p60-260.html), [2017](https://www.census.gov/library/publications/2018/demo/p60-264.html)). 
 
 [Historical state-level poverty data](https://www.census.gov/data/tables/time-series/demo/income-poverty/historical-poverty-people.html) was obtained from the US Census Bureau.
 
