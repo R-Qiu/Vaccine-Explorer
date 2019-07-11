@@ -33,6 +33,17 @@ vax_choices <- tibble("DTaP (Diptheria, Tetanus, Whooping Cough)" = "dtap",
                       "Varicella (Chickenpox)" = "vrc",
                       "PCV (Pneumonia, Meningitis, Sepsis)" = "pcv")
 
+# Make lookup table of all state names
+
+states_list <-
+  vax_factor %>% 
+  select(state_name) %>% 
+  mutate(state_name_pretty = state_name) %>% 
+  distinct() %>% 
+  mutate(state_name_pretty = str_to_title(state_name_pretty)) %>% 
+  spread(state_name_pretty, state_name)
+
+
 # Makes a table to lookup full names from symbols for axes labels
 # Regex grabs everything between parenthesis and the preceding space
 
@@ -78,6 +89,10 @@ ui <-
                             choices = factor_choices),
                 
                 htmlOutput("factor_x_info"), br(), 
+                
+                pickerInput("states", strong("States Displayed"), 
+                            choices = states_list, selected = states_list,
+                            options = list(`actions-box` = TRUE), multiple = TRUE), br(), 
                 
                 pickerInput("vax_choice", strong("Pick a vaccine schedule to analyze"),
                             choices = vax_choices),
@@ -191,8 +206,11 @@ server <- function(input, output) {
    
    # Computes constant lower bound for given vaccine choice to give perspective when alternating between
    # Including or excluding vaccine schedules that are behind as complete
+   # Does not filter based on selected states to preserve axes bounds when selecting/unselecting states
    
    lower_bound <- reactive({
+        
+     print(input$states)
      
      lower_bound <- 
        vax_factor %>% 
@@ -232,6 +250,7 @@ server <- function(input, output) {
        vax_factor %>% 
        filter(status == "adequate",
               vaccine == input$vax_choice,
+              state_name %in% input$states,
               !is.na(eval(parse(text = input$factor_x))))
      
      
