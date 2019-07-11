@@ -45,6 +45,7 @@ load("cdc_data/NISPUF13.RData")
 load("cdc_data/NISPUF14.RData")
 load("cdc_data/NISPUF15.RData")
 load("cdc_data/NISPUF16.RData")
+load("cdc_data/NISPUF17.RData")
 
 raw_10 <- as_tibble(NISPUF10)
 raw_11 <- as_tibble(NISPUF11)
@@ -53,6 +54,7 @@ raw_13 <- as_tibble(NISPUF13)
 raw_14 <- as_tibble(NISPUF14)
 raw_15 <- as_tibble(NISPUF15)
 raw_16 <- as_tibble(NISPUF16)
+raw_17 <- as_tibble(NISPUF17)
 
 
 # Bind all years into a masive tibble, with each one ID'd by year
@@ -66,6 +68,7 @@ raw <-
             "2014" = raw_14,
             "2015" = raw_15,
             "2016" = raw_16,
+            "2017" = raw_17,
             .id = "year") %>% 
   mutate(year = as.integer(year)) %>% 
   
@@ -80,11 +83,86 @@ raw <-
 # Second dataset ("HIC-6") necessary for extending insurance data back to 2010
 # Data from US Census Bureau
 # Table 6 retrieved from https://www.census.gov/library/publications/2017/demo/p60-260.html
-# Historical data retrieved from https://www.census.gov/data/tables/time-series/demo/health-insurance/historical-series/hic.html
+# Historical data retrieved from 
+# https://www.census.gov/data/tables/time-series/demo/health-insurance/historical-series/hic.html
 
-raw_insurance_med_cols <- c("state", "medicaid", "per_2013", "margin_2013", "per_2014", "margin_2014", "per_2015", "margin_2015", "per_2016", "margin_2016", "remove_1", "remove_2", "remove_3", "remove_4")
-raw_insurance_med <- 
-  read_excel("census_data/table6.xls", skip = 12, col_names = raw_insurance_med_cols) 
+# Since the Census Bureau changed their reporting format, we need both the 2017 and 2016 versions of Table 6
+# Retrieved from https://www.census.gov/library/publications/2018/demo/p60-264.html
+
+raw_insurance_2016_cols <- c("state", "medicaid", 
+                            "per_2013", "margin_2013", 
+                            "per_2014", "margin_2014", 
+                            "per_2015", "margin_2015", 
+                            "per_2016", "margin_2016", 
+                            "remove_1", "remove_2", "remove_3", "remove_4")
+raw_insurance_med_2016 <- 
+  read_excel("census_data/table6_2016.xls", skip = 12, col_names = raw_insurance_2016_cols) 
+
+raw_insurance_cols_2017 <- c("state", "medicaid", 
+                             "per_2013", "margin_2013", 
+                             "per_2016", "margin_2016",
+                             "per_2017", "margin_2017",
+                             "remove_5", "remove_6", "remove_7", "remove_8")
+raw_insurance_med_2017 <-
+  read_excel("census_data/table6_2017.xls", skip = 12, col_names = raw_insurance_cols_2017)
+
+
+# Combine 2016 and 2017 insurance data, using the Medicaid data from 2017
+# as it encodes Louisiana expanding Medicaid coverage in 2016
+
+raw_insurance_med <-
+  raw_insurance_med_2017 %>% 
+  slice(1:n() - 1) %>% 
+  bind_cols(raw_insurance_med_2016)
+
+
+# Tidies up the raw Census Bureau insurance data
+# Recode Medicaid expansion by year
+# "y" represents medicaid expansion on January 1st for year in question
+# Medicaid expansion dates confirmed with timeline from Henry J Kaiser Family Foundation 
+# https://www.kff.org/medicaid/issue-brief/status-of-state-medicaid-expansion-decisions-interactive-map/
+
+insurance_med <- 
+  raw_insurance_med %>% 
+  
+  # Remove non-data rows
+  
+  remove_empty() %>% 
+  slice(1:51) %>%
+  
+  # General formatting tweaks
+  
+  mutate(state = str_to_lower(str_remove_all(state, "[[:punct:]]")),
+         medicaid = str_to_lower(medicaid)) %>% 
+  select(-starts_with("remove"), -starts_with("margin")) %>% 
+  select(state, medicaid, per_2013, per_2014, per_2015, per_2016, per_2017) %>% 
+  
+  # Make data tidy
+  
+  gather(year, per_ins, -state, -medicaid) %>% 
+  mutate(year = str_remove(year, "per_"),
+         year = as.integer(year),
+         per_ins = 100 - per_ins) %>% 
+  
+  # Recode Medicaid info
+  # Medicaid_num column needed for animation
+  # For some reason, animated plotly will not change color in an animation unless the variable is numeric
+  
+  mutate(expansion_year = case_when(medicaid == "y" ~ 2014,
+                                    medicaid == "^y" ~ 2015,
+                                    medicaid == "+y" ~ 2016,
+                                    medicaid == "#y" ~ 2017),
+         medicaid = case_when(year >= expansion_year ~ "Yes",
+                              year < expansion_year ~ "No",
+                              is.na(expansion_year) ~ "No"),
+         medicaid = as.factor(medicaid),
+         medicaid_num = recode(medicaid, "Yes" = 1,
+                               "No" = 0))
+
+expansion_year_lookup <- 
+  insurance_med %>% 
+  distinct(state, expansion_year)
+
 
 raw_insurance_hist_cols <- c("state", "coverage", paste("per", 2017:2008, sep = "_"))
 raw_insurance_hist <- 
@@ -107,59 +185,13 @@ insurance_hist <-
   
   # Encode medicare coverage
   # Only need data for states before 2013 and after 2009
-  # All of which have not expanded medicaid coverae
+  # All of which have not expanded medicaid coverage
   
   mutate(year = as.integer(str_remove(year, "per_")),
          medicaid = "No",
          medicaid_num = 0) %>% 
   filter(year < 2013 & year > 2009)
-  
-  
 
-# Tidies up the raw Census Bureau insurance data
-# Recode Medicaid expansion by year
-# "y" represents medicaid expansion on January 1st for year in question
-# Medicaid expansion dates confirmed with timeline from Henry J Kaiser Family Foundation 
-# https://www.kff.org/medicaid/issue-brief/status-of-state-medicaid-expansion-decisions-interactive-map/
-
-insurance_med <- 
-  raw_insurance_med %>% 
-  
-  # Remove non-data rows
-  
-  remove_empty() %>% 
-  slice(1:51) %>%
-  
-  # General formatting tweaks
-  
-  mutate(state = str_to_lower(str_remove_all(state, "[[:punct:]]")),
-         medicaid = str_to_lower(medicaid)) %>% 
-  select(-starts_with("remove"), -starts_with("margin")) %>% 
-  
-  # Make data tidy
-  
-  gather(year, per_ins, -state, -medicaid) %>% 
-  mutate(year = str_remove(year, "per_"),
-         year = as.integer(year),
-         per_ins = 100 - per_ins) %>% 
-  
-  # Recode Medicaid info
-  # Medicaid_num column needed for animation
-  # For some reason, animated plotly will not change color in an animation unless the variable is numeric
-  
-  mutate(expansion_year = case_when(medicaid == "y" ~ 2014,
-                                    medicaid == "^y" ~ 2015,
-                                    medicaid == "+y" ~ 2016),
-         medicaid = case_when(year >= expansion_year ~ "Yes",
-                              year < expansion_year ~ "No",
-                              is.na(expansion_year) ~ "No"),
-         medicaid = as.factor(medicaid),
-         medicaid_num = recode(medicaid, "Yes" = 1,
-                               "No" = 0))
-
-expansion_year_lookup <- 
-  insurance_med %>% 
-  distinct(state, expansion_year)
 
 # Combine Medicaid-expansion and historical data
 

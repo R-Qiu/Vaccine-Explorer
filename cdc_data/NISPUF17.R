@@ -33,12 +33,16 @@
 # Step 1:   LOAD R PACKAGES AND ASSIGN FILE NAMES                          #
 ############################################################################
 #Users may need to install the Hmisc library before invoking it.
+
+# There is a conflict where tidyverse must be loaded before Hmisc
+# Therefore tidyverse is loaded before Hmisc even when creating the .RData file
+library(tidyverse)
 library(Hmisc) #TO USE contents()
 
 #---USE SLASH(/) TO SEPERATE A FILE PATH---#
-PUF <- "path-to-data"
+PUF <- "."
 
-flatfile <- "path-to-file/NISPUF17.DAT"
+flatfile <- "./NISPUF17.DAT"
 
 
 
@@ -1546,47 +1550,3 @@ NISPUF17$M_AGEGRP2 <- factor(NISPUF17$M_AGEGRP2, levels=MAGEGRP2_levels, labels=
 NISPUF17$ESTIAP17 <- factor(NISPUF17$ESTIAP17, levels=ESTIAP17Flevels, labels=ESTIAP17Flabels)
 
 NISPUF17$INS_STAT2_I <- factor(NISPUF17$INS_STAT2_I, levels=INS_STAT2_Ilevels, labels=INS_STAT2_Ilabels)
-
-##########################################################################
-# STEP 7:   CONTENTS AND STATISTICAL ESTIMATES(FREQUENCY) EXAMPLE        #
-##########################################################################
-
-#---CONTENTS---#
-NISPUF17.CONTENTS <- contents(NISPUF17)$contents
-
-print(NISPUF17.CONTENTS)
-
-#IN CASE THAT THE R CONSOLE CANNOT DISPLAY WHOLE CONTENTS,
-#YOU CAN SAVE CONTENTS INTO A FILE
-#write.table(NISPUF17.CONTENTS, file=paste(PUF,"/file-name",sep=""))
-
-#---UNWEIGHTED FREQUENCY---#
-unwt_freq <- function(UNWT.VAR){#FUNCTION TO PRINT UNWEIGHTED FREQUENCIES
-
-unwt.tab <- wtd.table(UNWT.VAR, weights= NULL, type='table')
-unwtd.freq <- data.frame(cbind(
-unwt.tab, round(unwt.tab/sum(unwt.tab)*100,2),
-cumsum(unwt.tab), cumsum(round(unwt.tab/sum(unwt.tab)*100,2))))
-names(unwtd.freq) <- c("Frequency", "Percent", "Cumulative Frequency", "Cumulative Percent")
-unwtd.title <- paste('2017 NIS-CHILD PUBLIC USE FILE', 'UNWEIGHTED FREQUENCIES', label(UNWT.VAR), sep="\n")
-label(unwtd.freq) <- unwtd.title
-
-print(unwtd.freq)
-}
-
-UNWT.VAR <- NISPUF17$AGEGRP	#INPUT A VARIABLE OF INTEREST
-unwt_freq(UNWT.VAR)
-
-#---WEIGHTED FREQUENCY---#
-WT <- NISPUF17$RDDWT_D		#INPUT A WEIGHT VARIABLE
-WT.VAR <- NISPUF17$AGEGRP 	#INPUT A VARIABLE OF INTEREST
-
-wt.tab <- wtd.table(WT.VAR, weights= WT, type='table')
-wtd.freq <- data.frame(cbind(
-wt.tab, round(wt.tab/sum(wt.tab)*100,2),
-cumsum(wt.tab), cumsum(round(wt.tab/sum(wt.tab)*100,2))))
-names(wtd.freq) <- c("Frequency", "Percent", "Cumulative Frequency", "Cumulative Percent")
-wtd.title <- paste('2017 NIS-CHILD PUBLIC USE FILE', 'WEIGHTED FREQUENCIES', label(WT.VAR), sep="\n")
-label(wtd.freq) <- wtd.title
-
-print(wtd.freq)

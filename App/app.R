@@ -172,8 +172,8 @@ server <- function(input, output) {
      about3_1 <- p('One major goal of the Affordable Care Act (ACA), commonly known as "Obamacare", was to reduce the number of adults in the US without health insurance. The ACA has tried to accomplish this through two main avenues: the creation of a tightly regulated Health Insurance Marketplace and by allowing states to expand Medicaid coverage to most low-income adults. And while it has generally been accepted that the ACA has improved overall health insurance rates in the US, it remains ambiguous how to attribute those gains and whether or not Medicaid expansion has been beneficial. Additionally, it\'s difficult to determine if the ACA has actually improved healthcare outcomes directly (and if it has, how). These are the questions Vaccine Explorer hopes to answer.')
      
      about8 <- h3(strong("Data Sources"))
-     about8_1 <- p("Vaccination rates data from the Centers for Disease Control (CDC) National Immunization Survey Public Use Files, 2010-2016 (child, 19-35 months of age)")
-     about8_2 <- p("Medicaid Expansion Insurance data (2013-2016) from the US Census Bureau, Health Insurance in the United States: 2016 - Tables")
+     about8_1 <- p("Vaccination rates data from the Centers for Disease Control (CDC) National Immunization Survey Public Use Files, 2010-2017 (child, 19-35 months of age)")
+     about8_2 <- p("Medicaid Expansion Insurance data (2013-2017) from the US Census Bureau, Health Insurance in the United States: 2016, 2017 - Tables")
      about8_3 <- p("Historic Insurance data (2010-2012) from the US Census Bureau, Health Insurance Historical Tables - HIC Series.")
      about8_4 <- p("Poverty data from the US Census Bureau, Historical Poverty Tables: People and Families - 1959 to 2017")
      about8_5 <- p("States' kindergarten immunization requirements from ProCon.org")
@@ -210,7 +210,7 @@ server <- function(input, output) {
    
    lower_bound <- reactive({
         
-     print(input$states)
+     # print(input$states)
      
      lower_bound <- 
        vax_factor %>% 
@@ -295,10 +295,10 @@ server <- function(input, output) {
      # Modifies caption based on which x axis is selected
      # Notably, order of citations changes in order to keep them in order from longest to shortest
      
-     caption_hover <- "Hover over a point for more info. \n"
+     caption_hover <- "Hover over a point for more info.  \n"
      caption_states <- "Each point represents one state in one year.\n\n"
      caption_source <- "Data sources: "
-     caption_source1 <- "CDC National Immunization Surveys, 2010-2016\n"
+     caption_source1 <- "CDC National Immunization Surveys, 2010-2017  \n"
      
      if(years()){
        caption_states <- "Each point represents one state.\n\n"
@@ -306,7 +306,7 @@ server <- function(input, output) {
      
      if (input$factor_x == "per_ins") {
        
-       caption_source2 <- "US Census Bureau Health Insurance Historical Tables\nUS Census Bureau Health Insurance In the US 2016\n"
+       caption_source2 <- "US Census Bureau Health Insurance Historical Tables\nUS Census Bureau Health Insurance in the US: 2016, 2017\n"
        caption_pts <- paste(caption_hover, caption_states, caption_source, caption_source2, caption_source1, sep = "")
        
      } else if (input$factor_x == "per_pov"){
